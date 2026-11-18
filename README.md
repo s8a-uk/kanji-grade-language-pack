@@ -144,8 +144,9 @@ stops the build.
 
 ### GitHub Actions
 
-- `build.yml`: on every push and pull request, runs the tests, builds the pack, checks it is reproducible, checks it in
-  the game for each supported version, and keeps the zip and the screenshots as artifacts.
+- `build.yml`: on every pull request (before it is merged), runs the tests, builds the pack, checks it is
+  reproducible, checks it in the game for each supported version, and keeps the screenshots as artifacts; `main`
+  takes only pull requests whose checks passed. Run by hand, it also keeps the zip as an artifact.
 - `check-minecraft-versions.yml`: every day, looks for what is new in Minecraft and Fabric (new releases, new
   `ja_jp.json` files, new builds of Fabric) and writes it in the summary of the run. When there is something to do, the
   run fails so that a notice is sent; following a new version is done by hand, starting with

@@ -74,7 +74,8 @@ else
 	waiting "environment release with a reviewer and the branch main only (made without them for now)"
 fi
 
-# Rulesets: main takes changes only through pull requests whose build passed, never force pushed or deleted; tags v*
+# Rulesets: main takes changes only through pull requests up to date with main whose checks passed (build.yml's job
+# "all checks passed"; main is not checked again after the merge), never force pushed or deleted; tags v*
 # are never moved or deleted. Their creation is not limited: release.yml makes the tag of a release with GITHUB_TOKEN,
 # and GitHub Actions cannot bypass a ruleset of a user's repository (only an organization's). Administrators may bypass
 # both (the owner)
@@ -95,8 +96,8 @@ try "ruleset main" ruleset main "$(cat <<EOF
            {"type": "pull_request", "parameters": {"required_approving_review_count": 0,
             "dismiss_stale_reviews_on_push": false, "require_code_owner_review": false,
             "require_last_push_approval": false, "required_review_thread_resolution": false}},
-           {"type": "required_status_checks", "parameters": {"strict_required_status_checks_policy": false,
-            "required_status_checks": [{"context": "build"}]}}]}
+           {"type": "required_status_checks", "parameters": {"strict_required_status_checks_policy": true,
+            "required_status_checks": [{"context": "all checks passed"}]}}]}
 EOF
 )"
 try "ruleset release tags" ruleset "release tags" "$(cat <<EOF
