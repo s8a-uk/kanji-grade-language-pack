@@ -1,0 +1,44 @@
+# The Minecraft versions the pack is made for (src/kanji_grade_language_pack/minecraft_versions.py).
+#   version               a release of Minecraft: Java Edition
+#   resource_pack_format  its resource pack format (make resource-pack-format MINECRAFT_VERSION=<version>)
+#   ja_jp_sha1            the SHA-1 of the ja_jp.json Mojang serves it (make served-ja-jp-sha1 MINECRAFT_VERSION=<version>)
+#   java_version          the major version of Java it runs on (make java-version MINECRAFT_VERSION=<version>); its
+#                         client test runs in the image of game_client_test/docker/java<java_version>/
+#   fabric_api_version    the Fabric API the client test runs with (https://fabricmc.net/develop)
+# Versions with the same ja_jp_sha1 share one pack. make update-minecraft-versions brings the table up to Minecraft and
+# Fabric (.github/workflows/check-minecraft-versions.yml runs it every day and tells when there is something to do).
+
+[[minecraft]]
+version = "26.3"
+resource_pack_format = 97
+ja_jp_sha1 = "fd84aed93215e5c33d08e06f7627fce6dd5c7d9c"
+java_version = 25
+fabric_api_version = "0.166.2+26.3"
+
+[[minecraft]]
+version = "26.2"
+resource_pack_format = 88
+ja_jp_sha1 = "fd84aed93215e5c33d08e06f7627fce6dd5c7d9c"
+java_version = 25
+fabric_api_version = "0.161.0+26.2"
+
+[[minecraft]]
+version = "26.1.2"
+resource_pack_format = 84
+ja_jp_sha1 = "fd84aed93215e5c33d08e06f7627fce6dd5c7d9c"
+java_version = 25
+fabric_api_version = "0.155.3+26.1.2"
+
+[[minecraft]]
+version = "26.1.1"
+resource_pack_format = 84
+ja_jp_sha1 = "fd84aed93215e5c33d08e06f7627fce6dd5c7d9c"
+java_version = 25
+fabric_api_version = "0.145.4+26.1.1"
+
+[[minecraft]]
+version = "26.1"
+resource_pack_format = 84
+ja_jp_sha1 = "fd84aed93215e5c33d08e06f7627fce6dd5c7d9c"
+java_version = 25
+fabric_api_version = "0.145.1+26.1"

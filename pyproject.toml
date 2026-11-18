@@ -1,0 +1,22 @@
+[project]
+name = "kanji-grade-language-pack"
+version = "0"  # the pack's version is PACK_VERSION in versions.mk
+description = "Builds a Minecraft resource pack of Japanese for children: kana only, and the kanji of each school grade"
+requires-python = "==3.15.*"
+dependencies = [
+    "sudachipy==0.7.0",
+    "sudachidict-full==20261015",
+    "pillow==13.0.0",
+    "pypdf==7.1.1",
+]
+
+[dependency-groups]
+dev = ["pytest==9.2.0"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-p no:cacheprovider"

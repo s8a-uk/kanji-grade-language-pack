@@ -1,0 +1,43 @@
+name: check Minecraft versions
+
+# Every day, looks for what is new in Minecraft and Fabric since minecraft_versions.toml was written (make
+# update-minecraft-versions): a new release, a new ja_jp.json of a version, a patch of a line the table has, a release
+# or a Fabric API whose name the program does not read, a missing Java image of the client test, newer Fabric API,
+# Fabric Loader and Loom builds. The findings go to the summary of the run; when a person has something to do, the run
+# fails, so GitHub sends a notice. It changes nothing: the person runs make update-minecraft-versions on a topic branch
+# and does the rest by hand (.claude/CLAUDE.md).
+on:
+  schedule:
+    - cron: "0 0 * * *" # every day 00:00 UTC (09:00 in Japan)
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the image
+        run: make image
+
+      - name: Look for what is new in Minecraft and Fabric
+        run: |
+          make -s update-minecraft-versions > build/update.out
+          {
+            echo "## Minecraft and Fabric since minecraft_versions.toml"
+            echo
+            cat build/minecraft_versions_update.md
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat build/update.out
+          if grep -qx 'person_needed=true' build/update.out; then
+            echo "::error::Something to do by hand: see the summary of this run, then run make update-minecraft-versions on a topic branch"
+            exit 1
+          fi
+          grep -qx 'person_needed=false' build/update.out

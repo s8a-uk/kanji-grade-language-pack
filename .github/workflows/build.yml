@@ -1,0 +1,152 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      minecraft-versions: ${{ steps.versions.outputs.json }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The build image runs as the runner's user (make passes its UID), so it can write build/ and dist/
+      - name: Build the image
+        run: make image
+
+      - name: Test the Python code
+        run: make test
+
+      # Downloads every ja_jp.json of minecraft_versions.toml, reads them, builds a pack for each; stops on a failed check
+      - name: Build the packs
+        run: make
+
+      - name: Check that the same inputs give the same zips
+        run: |
+          first=$(sha256sum dist/kanji-grade-ja-*.zip)
+          rm dist/kanji-grade-ja-*.zip build/ja_jp_reading_markup.*.json
+          make
+          second=$(sha256sum dist/kanji-grade-ja-*.zip)
+          echo "$first"; echo "$second"
+          [ "$first" = "$second" ]
+
+      - name: Check that data/pack_icon.png is what make pack-icon draws
+        run: |
+          make pack-icon
+          git diff --exit-code data/pack_icon.png
+
+      - name: List the Minecraft versions
+        id: versions
+        run: echo "json=$(make -s minecraft-versions-json)" >> "$GITHUB_OUTPUT"
+
+      # On main: the packs differ from the last release (data, code, the table) but PACK_VERSION did not move on, so
+      # release.yml released nothing for this push
+      - name: Check that PACK_VERSION moved on since its release
+        if: github.event_name == 'push'
+        run: |
+          tag=$(make -s print-RELEASE_TAG)
+          git fetch --quiet --depth=1 origin "refs/tags/$tag:refs/tags/$tag" 2>/dev/null || exit 0
+          git fetch --quiet --unshallow 2>/dev/null || true
+          if ! git diff --quiet "$tag" HEAD -- data src minecraft_versions.toml; then
+            echo "::warning::The packs changed since $tag but PACK_VERSION did not: nothing was released; raise PACK_VERSION in versions.mk to release"
+          fi
+
+      # The zips hold text derived from Mojang's: kept a short time, and not for pull requests
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name != 'pull_request'
+        with:
+          name: kanji-grade-language-pack
+          path: dist/kanji-grade-ja-*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  # A pull request: the packs of its base and its own, and the strings that differ in each language (in the summary of
+  # the run), so a change of the readings, the rules or SudachiDict is seen before it is merged
+  pack-diff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: head
+          persist-credentials: false
+
+      # The newest Minecraft version's pack of each side (the base first: both build the image of the same name)
+      - name: Build both packs and compare them
+        run: |
+          make -C base image
+          make -C base
+          base_zip=$(make -s -C base print-LATEST_PACK_ZIP)
+          mkdir -p head/build
+          cp "base/$base_zip" head/build/base_pack.zip
+          make -C head image
+          make -C head
+          head_zip=$(make -s -C head print-LATEST_PACK_ZIP)
+          make -C head pack-diff PREVIOUS=build/base_pack.zip NEW="$head_zip"
+          base_tag=$(make -s -C base print-RELEASE_TAG)
+          head_tag=$(make -s -C head print-RELEASE_TAG)
+          {
+            if [ "$base_tag" != "$head_tag" ]; then
+              echo "**Merging this pull request releases $head_tag** (release.yml: tests, approval, GitHub Release, Modrinth)."
+            else
+              echo "Merging this pull request releases nothing: PACK_VERSION stays at ${base_tag#v}."
+            fi
+            echo
+            echo "## The packs: base ($base_zip) and this pull request ($head_zip)"
+            echo
+            cat head/build/pack_diff.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Every Minecraft version in its own client on Xvfb: the game takes the pack, the seven languages are in the list,
+  # every string of each is in the game
+  game-client-test:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        minecraft-version: ${{ fromJSON(needs.build.outputs.minecraft-versions) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the packs
+        run: |
+          make image
+          make
+
+      - name: Check the pack in the game
+        env:
+          MINECRAFT_VERSION: ${{ matrix.minecraft-version }}
+        run: make game-client-test MINECRAFT_VERSION="$MINECRAFT_VERSION"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: screenshots-${{ matrix.minecraft-version }}
+          path: game_client_test/run/${{ matrix.minecraft-version }}/screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
