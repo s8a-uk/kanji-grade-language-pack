@@ -1,8 +1,10 @@
 name: build
 
+# Every pull request is checked here before it is merged (the ruleset of main requires the job "all checks passed"
+# and the pull request to be up to date with main), so what is merged is what was checked: a push to main is not
+# checked again (release.yml checks everything itself when it releases). workflow_dispatch builds any branch, and keeps
+# its zips as an artifact.
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -53,18 +55,6 @@ jobs:
         id: versions
         run: echo "json=$(make -s minecraft-versions-json)" >> "$GITHUB_OUTPUT"
 
-      # On main: the packs differ from the last release (data, code, the table) but PACK_VERSION did not move on, so
-      # release.yml released nothing for this push
-      - name: Check that PACK_VERSION moved on since its release
-        if: github.event_name == 'push'
-        run: |
-          tag=$(make -s print-RELEASE_TAG)
-          git fetch --quiet --depth=1 origin "refs/tags/$tag:refs/tags/$tag" 2>/dev/null || exit 0
-          git fetch --quiet --unshallow 2>/dev/null || true
-          if ! git diff --quiet "$tag" HEAD -- data src minecraft_versions.toml; then
-            echo "::warning::The packs changed since $tag but PACK_VERSION did not: nothing was released; raise PACK_VERSION in versions.mk to release"
-          fi
-
       # The zips hold text derived from Mojang's: kept a short time, and not for pull requests
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: github.event_name != 'pull_request'
@@ -106,9 +96,16 @@ jobs:
           make -C head pack-diff PREVIOUS=build/base_pack.zip NEW="$head_zip"
           base_tag=$(make -s -C base print-RELEASE_TAG)
           head_tag=$(make -s -C head print-RELEASE_TAG)
+          # The pack changes (other bytes, or another name: a Minecraft version added) but PACK_VERSION does not
+          packs_change=false
+          if [ "$(basename "$base_zip")" != "$(basename "$head_zip")" ] || ! cmp -s "base/$base_zip" "head/$head_zip"; then
+            packs_change=true
+          fi
           {
             if [ "$base_tag" != "$head_tag" ]; then
               echo "**Merging this pull request releases $head_tag** (release.yml: tests, approval, GitHub Release, Modrinth)."
+            elif [ "$packs_change" = true ]; then
+              echo "**The pack changes but PACK_VERSION stays at ${base_tag#v}: merging releases nothing.** Raise PACK_VERSION in versions.mk to release it."
             else
               echo "Merging this pull request releases nothing: PACK_VERSION stays at ${base_tag#v}."
             fi
@@ -117,6 +114,9 @@ jobs:
             echo
             cat head/build/pack_diff.md
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$base_tag" = "$head_tag" ] && [ "$packs_change" = true ]; then
+            echo "::warning::The pack changes but PACK_VERSION stays at ${base_tag#v}: merging releases nothing"
+          fi
 
   # Every Minecraft version in its own client on Xvfb: the game takes the pack, the seven languages are in the list,
   # every string of each is in the game
@@ -150,3 +150,22 @@ jobs:
           path: game_client_test/run/${{ matrix.minecraft-version }}/screenshots/
           if-no-files-found: ignore
           retention-days: 14
+
+  # The one check the ruleset of main requires: every job above passed (the client tests are one job per Minecraft
+  # version, whose names change with minecraft_versions.toml)
+  all-checks-passed:
+    name: all checks passed
+    if: always()
+    needs: [build, pack-diff, game-client-test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check the results of the jobs
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$RESULTS"
+          for result in $RESULTS; do
+            # pack-diff is skipped when the workflow is not run for a pull request
+            [ "$result" = success ] || [ "$result" = skipped ] || exit 1
+          done

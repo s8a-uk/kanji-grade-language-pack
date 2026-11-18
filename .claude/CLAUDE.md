@@ -142,8 +142,8 @@ https://fabricmc.net/develop）、その Java のイメージ（`docker/java<N>/
     ため）。GitHub の画面の「Create a new release」でタグや Release を作らない（同じ名前が先にできて失敗する）
   - PR の `pack-diff` のまとめの先頭に、マージでリリースされるか（`PACK_VERSION` が変わったか）が出る
 - `PACK_VERSION` の上げ方：読みや表記が変わった（新しい `ja_jp.json` を含む）ときはマイナー、直しだけならパッチ。
-  対応する版を足しただけでも zip の名前が変わるので、パッチを上げて出す。上げ忘れは `build.yml` が `main` で警告する
-  （最後のリリースのタグから `data/`・`src/`・表が変わったのに `PACK_VERSION` が同じとき。そのマージではリリースされない）
+  対応する版を足しただけでも zip の名前が変わるので、パッチを上げて出す。上げ忘れは PR の `pack-diff` が警告する
+  （パックが変わるのに `PACK_VERSION` が同じとき。そのマージではリリースされない）
 - 1.0.0 までは 0.x で出す（0.1.0 は使えない。初めは 0.1.1）
 - Release は変えられない設定（immutable releases）にしている。一度 Release に使ったタグの名前は、Release やタグを
   消しても、リポジトリを消して同じ名前で作り直しても、二度と使えない（GitHub の決まり）。試しのリリースでも版の番号を
@@ -170,7 +170,9 @@ https://fabricmc.net/develop）、その Java のイメージ（`docker/java<N>/
 - リポジトリの設定は `.github/apply-repository-settings.sh` にあり、`make github-settings` で当てる。リポジトリを
   作り直したときに実行する（何度実行してもよい）。ワークフローの形（リリースの起動、使うアクション、environment）を
   変えたら、このスクリプトも合わせる
-- `main` へは PR で入れる（`build` の成功が要る）
+- `main` へは PR で入れる。`build.yml` の「all checks passed」（テスト、ビルド、全部の版のゲームでのテスト）の成功と、
+  PR が `main` の最新を含んでいることが要る（`main` が進んだら PR を更新して確かめ直す）。マージした後の `main` では
+  確かめ直さない（リリースのときは `release.yml` が全部確かめる）
 
 ## 読みの直し（data/reading_fixes.toml）
 
