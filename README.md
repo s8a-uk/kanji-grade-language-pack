@@ -38,6 +38,18 @@ In the language list, the region (日本・にほん) follows each name.
 | 作業台 | さぎょうだい | さぎょうだい | 作ぎょう台 | 作業台 | 作業台 | 作業台 | 作業台 |
 | 言語設定… | げんごせってい… | げんごせってい… | 言語せってい… | 言語せっ定… | 言語せっ定… | 言語設定… | 言語設定… |
 
+### Screenshots
+
+The options screen in the kana-only language, grade 3 and grade 6:
+
+| ja_kana | ja_g3 | ja_g6 |
+|---|---|---|
+| ![The options screen in ja_kana](screenshots/options_ja_kana.png) | ![The options screen in ja_g3](screenshots/options_ja_g3.png) | ![The options screen in ja_g6](screenshots/options_ja_g6.png) |
+
+| The language list | The resource pack list |
+|---|---|
+| ![The seven languages in the language list](screenshots/language_list.png) | ![The pack in the resource pack list](screenshots/resource_packs.png) |
+
 Supported versions: Minecraft: Java Edition 26.1–26.3
 
 ### How to use
@@ -128,6 +140,7 @@ stops the build.
 | `data/` | The kanji by grade, the words of the appendix, the reading fixes, the icon |
 | `game_client_test/` | The mod that checks the pack in the Minecraft client (a Fabric client GameTest). `docker/java<N>/` holds the test image of each Java version |
 | `pyproject.toml`, `uv.lock` | The Python dependencies (pinned by hash) |
+| `screenshots/` | The screenshots of this README, taken by the client test (`game_client_test/run/<version>/screenshots/`) |
 
 ### GitHub Actions
 
