@@ -23,6 +23,8 @@ Minecraft Java 版に、子ども向けの日本語を 7 つ（`ja_kana`、`ja_g
 - 同じ入力からは同じ zip（バイト単位）になることを保つ。CI が作り直して確かめている
 - テストや例に Mojang の文字列（`ja_jp.json` の文）を使わない。自分で書いた文か、一般的な語だけにする
 - `docs/` は手元だけのメモで、git に入れない（`.gitignore`）
+- README の画面（`screenshots/`）は、ゲームでのテスト（`make game-client-test`）が撮ったものを写す。表示が変わったら
+  撮り直す（`game_client_test/run/<版>/screenshots/` の `options_*`・`language_list`・`resource_packs`）
 - 出力（パックの中身）が変わる変更をしたら、変わった文字列を確かめる。変更の前の zip を残しておき、
   `make pack-diff` で 7 言語ごとの差分を見る（PR では `build.yml` の `pack-diff` ジョブが、実行のまとめに出す）
 

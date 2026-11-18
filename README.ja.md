@@ -30,6 +30,18 @@ Minecraft Java 版の言語の一覧に、子ども向けの日本語を 7 つ�
 | 作業台 | さぎょうだい | さぎょうだい | 作ぎょう台 | 作業台 | 作業台 | 作業台 | 作業台 |
 | 言語設定… | げんごせってい… | げんごせってい… | 言語せってい… | 言語せっ定… | 言語せっ定… | 言語設定… | 言語設定… |
 
+### 画面
+
+設定の画面（ひらがな・カタカナ、3 年生、6 年生）：
+
+| ja_kana | ja_g3 | ja_g6 |
+|---|---|---|
+| ![ja_kana の設定の画面](screenshots/options_ja_kana.png) | ![ja_g3 の設定の画面](screenshots/options_ja_g3.png) | ![ja_g6 の設定の画面](screenshots/options_ja_g6.png) |
+
+| 言語の一覧 | リソースパックの一覧 |
+|---|---|
+| ![言語の一覧の 7 つの言語](screenshots/language_list.png) | ![リソースパックの一覧のこのパック](screenshots/resource_packs.png) |
+
 対応する版：Minecraft Java 版 26.1〜26.3
 
 ### 使い方
@@ -106,6 +118,7 @@ make game-client-tests  # 作ったパックを、対応する版ごとの Minec
 | `data/` | 学年別の漢字、付表の語、読みの直し、アイコン |
 | `game_client_test/` | Minecraft のクライアントで確かめるテスト用の MOD（Fabric の client GameTest）。`docker/java<N>/` は Java の版ごとのテスト用のイメージ |
 | `pyproject.toml`・`uv.lock` | Python の依存（ハッシュで固定） |
+| `screenshots/` | この README の画面。ゲームでのテストが撮ったもの（`game_client_test/run/<版>/screenshots/`） |
 
 ### GitHub Actions
 

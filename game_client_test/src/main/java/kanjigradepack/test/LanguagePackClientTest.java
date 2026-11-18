@@ -5,9 +5,11 @@ import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,9 +19,12 @@ import java.util.zip.ZipFile;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Options;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 import net.minecraft.client.gui.screens.options.LanguageSelectScreen;
+import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.locale.DeprecatedTranslationsInfo;
 import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
@@ -29,14 +34,19 @@ import net.minecraft.server.packs.repository.PackRepository;
 /**
  * Checks the pack in a production client: the game takes the pack as made for this version (its resource pack format),
  * it turns the pack on, finds the languages of its pack.mcmeta in the language list, and for each language checks that
- * every string of its file in the pack is the string the game uses. Screenshots of the
- * language list, of the title screen in each language and of the resource pack list (the pack's icon) go to
- * run/<Minecraft version>/screenshots/.
+ * every string of its file in the pack is the string the game uses. Screenshots of the title screen and the options
+ * screen in each language, of the language list (with the languages of the pack) and of the resource pack list (the
+ * pack's icon) go to run/<Minecraft version>/screenshots/ (the screenshots of README.md come from them).
  */
 public class LanguagePackClientTest implements FabricClientGameTest {
 	private static final int RELOAD_TIMEOUT = 2400;
 	// The loading overlay fades out in about one second after the reload
 	private static final int OVERLAY_FADE_TICKS = 40;
+	// The language selected when the language list is shot: the list is in the order of the codes (ja_g1 ... ja_g6,
+	// ja_jp, ja_kana) and shows the selected one in its fifth row, so all of them are in the shot
+	private static final String LANGUAGE_OF_THE_LIST = "ja_g5";
+	private static final int SCREENSHOT_WIDTH = 1920;
+	private static final int SCREENSHOT_HEIGHT = 1080;
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
@@ -47,6 +57,9 @@ public class LanguagePackClientTest implements FabricClientGameTest {
 		}
 		Map<String, Map<String, String>> expected = readLanguages(pack, languages);
 		String packId = "file/" + pack.getFileName();
+		// Full HD: the GUI scale (auto) is 4, so the screenshots are sharp enough for README.md and the pack's icon is shown
+		// at its own size (128 x 128)
+		context.getInput().resizeWindow(SCREENSHOT_WIDTH, SCREENSHOT_HEIGHT);
 
 		CompletableFuture<Void> packReload = context.computeOnClient(minecraft -> {
 			PackRepository packs = minecraft.getResourcePackRepository();
@@ -73,23 +86,9 @@ public class LanguagePackClientTest implements FabricClientGameTest {
 				}
 			}
 		});
-		context.setScreen(() -> {
-			Minecraft minecraft = Minecraft.getInstance();
-			return new LanguageSelectScreen(new TitleScreen(), minecraft.options, minecraft.getLanguageManager());
-		});
-		// The names of the seven languages have full-width brackets (日本語（3年生）): typed into the search box, they
-		// leave the seven (and other languages with such brackets) in the list
-		context.getInput().typeChars("（");
-		context.waitTick();
-		context.takeScreenshot("language_list");
 
 		for (String code : languages) {
-			CompletableFuture<Void> languageReload = context.computeOnClient(minecraft -> {
-				minecraft.getLanguageManager().setSelected(code);
-				minecraft.options.languageCode = code;
-				return minecraft.reloadResourcePacks();
-			});
-			waitForReload(context, languageReload);
+			selectLanguage(context, code);
 			List<String> wrong = context.computeOnClient(minecraft -> {
 				Language language = Language.getInstance();
 				List<String> out = new ArrayList<>();
@@ -106,8 +105,17 @@ public class LanguagePackClientTest implements FabricClientGameTest {
 					+ " strings differ, e.g. " + wrong.subList(0, Math.min(5, wrong.size())));
 			}
 			context.setScreen(TitleScreen::new);
-			context.takeScreenshot("title_" + code);
+			takeScreenshot(context, "title_" + code);
+			context.setScreen(LanguagePackClientTest::optionsScreen);
+			takeScreenshot(context, "options_" + code);
 		}
+
+		selectLanguage(context, LANGUAGE_OF_THE_LIST);
+		context.setScreen(() -> {
+			Minecraft minecraft = Minecraft.getInstance();
+			return new LanguageSelectScreen(new TitleScreen(), minecraft.options, minecraft.getLanguageManager());
+		});
+		takeScreenshot(context, "language_list");
 
 		// The resource pack list, where the pack shows its icon (pack.png) and description
 		context.setScreen(() -> {
@@ -115,9 +123,53 @@ public class LanguagePackClientTest implements FabricClientGameTest {
 			return new PackSelectionScreen(minecraft.getResourcePackRepository(), packs -> {},
 				minecraft.getResourcePackDirectory(), Component.translatable("resourcePack.title"));
 		});
-		context.takeScreenshot("resource_packs");
+		takeScreenshot(context, "resource_packs");
 		// A client GameTest has to end on the title screen
 		context.setScreen(TitleScreen::new);
+	}
+
+	/**
+	 * A screenshot with the cursor at the bottom edge of the window, below every button and list, so nothing in it is
+	 * shown as hovered (the window's centre, where the cursor is otherwise, is on a button of most screens).
+	 */
+	private static void takeScreenshot(ClientGameTestContext context, String name) {
+		context.getInput().setCursorPos(SCREENSHOT_WIDTH / 2.0, SCREENSHOT_HEIGHT - 1);
+		context.waitTick();
+		context.takeScreenshot(name);
+	}
+
+	/**
+	 * The options screen, opened from the title screen. Its constructor differs between versions: (Screen, Options,
+	 * boolean inWorld) in 26.1, (Screen, Options) from 26.2; the test is compiled for each version, so it picks the one
+	 * there is.
+	 */
+	private static Screen optionsScreen() {
+		Options options = Minecraft.getInstance().options;
+		for (Constructor<?> constructor : OptionsScreen.class.getConstructors()) {
+			List<Class<?>> parameters = Arrays.asList(constructor.getParameterTypes());
+			try {
+				if (parameters.equals(List.of(Screen.class, Options.class))) {
+					return (Screen) constructor.newInstance(new TitleScreen(), options);
+				}
+				if (parameters.equals(List.of(Screen.class, Options.class, boolean.class))) {
+					return (Screen) constructor.newInstance(new TitleScreen(), options, false);
+				}
+			} catch (ReflectiveOperationException e) {
+				throw new AssertionError("cannot open the options screen", e);
+			}
+		}
+		throw new AssertionError("no known constructor of OptionsScreen: "
+			+ Arrays.toString(OptionsScreen.class.getConstructors()));
+	}
+
+	/** Selects a language as the language screen does, and waits for the game to load it. */
+	private static void selectLanguage(ClientGameTestContext context, String code) {
+		CompletableFuture<Void> reload = context.computeOnClient(minecraft -> {
+			minecraft.getLanguageManager().setSelected(code);
+			minecraft.options.languageCode = code;
+			return minecraft.reloadResourcePacks();
+		});
+		waitForReload(context, reload);
 	}
 
 	/**
