@@ -151,8 +151,9 @@ stops the build.
   `ja_jp.json` files, new builds of Fabric) and writes it in the summary of the run. When there is something to do, the
   run fails so that a notice is sent; following a new version is done by hand, starting with
   `make update-minecraft-versions`.
-- `release.yml`: a push to `main` that raises `PACK_VERSION` (`versions.mk`) releases it: builds the packs, checks
-  every version and, after approval, makes the tag `v<PACK_VERSION>` and a GitHub Release with the zips. With the
+- `release.yml`: a push to `main` that raises `PACK_VERSION` (`versions.mk`) releases it: runs the tests, builds the
+  packs and, after approval, makes the tag `v<PACK_VERSION>` and a GitHub Release with the zips (the client tests
+  passed on the pull request). With the
   repository variable `MODRINTH_PROJECT_ID` and the secret `MODRINTH_TOKEN`, each pack is also published on Modrinth
   (mc-publish).
 

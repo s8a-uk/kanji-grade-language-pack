@@ -135,9 +135,9 @@ https://fabricmc.net/develop）、その Java のイメージ（`docker/java<N>/
 
 - リリースするには、PR で `versions.mk` の `PACK_VERSION` を上げてマージする。タグは手で打たない
   - `release.yml` は `main` への push のたびに動き、`v<PACK_VERSION>`（`make -s print-RELEASE_TAG`）のタグがまだ
-    無ければリリースする：全部の版でテストし（テストの側で作り直した zip がリリースする zip と同じバイト列かも確かめる）、
-    environment `release` の承認の後に、push されたコミットにタグを作り、GitHub Release に全部の zip を付ける。タグが
-    もうあれば何もしない
+    無ければリリースする：テストとパックの作成をし、environment `release` の承認の後に、push されたコミットにタグを
+    作り、GitHub Release に全部の zip を付ける。タグがもうあれば何もしない。ゲームでのテストは PR で済んでいるので
+    しない（`main` には、`main` の最新を含み全部のチェックが通った PR だけが入り、同じ入力からは同じ zip ができる）
   - タグは `release.yml` が Release と一緒に作る（`GITHUB_TOKEN` で push したタグでは、ほかのワークフローが動かない
     ため）。GitHub の画面の「Create a new release」でタグや Release を作らない（同じ名前が先にできて失敗する）
   - PR の `pack-diff` のまとめの先頭に、マージでリリースされるか（`PACK_VERSION` が変わったか）が出る
@@ -218,6 +218,9 @@ https://fabricmc.net/develop）、その Java のイメージ（`docker/java<N>/
 
 ## 落とし穴
 
+- Gradle が依存（Loom・Minecraft・Fabric）を Maven から取るのは、ときどき一時的に失敗する。PR のゲームでのテストは、
+  依存の取得の失敗（「Could not resolve all」）のときだけ、1・3・9 分あけて最大 3 回やり直す（`--refresh-dependencies`。
+  `make game-client-test GRADLE_ARGUMENTS=…`）。テストそのものの失敗はやり直さない
 - Gradle は値の変わらないタスクを飛ばすので、`prodClientGameTest` は `outputs.upToDateWhen { false }` で毎回動かす
 - Fabric の client GameTest は、タイトル画面で終わらないと失敗する
 - Loom が手元で作る Minecraft の jar は環境ごとにバイト列が違うので、Gradle の依存の検証では別の扱いにしている

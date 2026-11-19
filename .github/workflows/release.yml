@@ -1,9 +1,10 @@
 name: release
 
 # A push to main (a merged pull request) whose PACK_VERSION (versions.mk) has no tag v<PACK_VERSION> yet (make -s
-# print-RELEASE_TAG) releases it: builds the packs, runs the client test of every Minecraft version (each test builds
-# the packs again and checks they are the same bytes as the ones released), and makes the tag and a GitHub Release with
-# all the zips on the pushed commit. When the repository variable MODRINTH_PROJECT_ID is set (and the secret
+# print-RELEASE_TAG) releases it: runs the tests, builds the packs, and makes the tag and a GitHub Release with all the
+# zips on the pushed commit. The client test of every Minecraft version is not run again: the ruleset of main takes
+# only pull requests up to date with main whose checks (build.yml, the client tests included) passed, and the same
+# inputs give the same zips. When the repository variable MODRINTH_PROJECT_ID is set (and the secret
 # MODRINTH_TOKEN of the environment release), each pack is also published on Modrinth for its Minecraft versions. A
 # push whose PACK_VERSION already has its tag releases nothing. The build and test jobs have a read-only token; the
 # jobs that publish run in the environment release (its reviewers approve them; make github-settings sets it up) and
@@ -26,7 +27,6 @@ jobs:
     outputs:
       release: ${{ steps.tag.outputs.release }}
       tag: ${{ steps.tag.outputs.tag }}
-      minecraft-versions: ${{ steps.lists.outputs.versions }}
       packs: ${{ steps.lists.outputs.packs }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -58,59 +58,24 @@ jobs:
           make image
           make test
           make
-          sha256sum dist/kanji-grade-ja-*.zip | tee build/released.sha256
+          sha256sum dist/kanji-grade-ja-*.zip
 
-      - name: List the Minecraft versions and the packs
+      - name: List the packs
         if: steps.tag.outputs.release == 'true'
         id: lists
-        run: |
-          echo "versions=$(make -s minecraft-versions-json)" >> "$GITHUB_OUTPUT"
-          echo "packs=$(make -s pack-groups)" >> "$GITHUB_OUTPUT"
+        run: echo "packs=$(make -s pack-groups)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.tag.outputs.release == 'true'
         with:
           name: release
-          path: |
-            dist/kanji-grade-ja-*.zip
-            build/released.sha256
+          path: dist/kanji-grade-ja-*.zip
           if-no-files-found: error
           retention-days: 7
 
-  game-client-test:
-    needs: build
-    if: needs.build.outputs.release == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 40
-    permissions:
-      contents: read
-    strategy:
-      matrix:
-        minecraft-version: ${{ fromJSON(needs.build.outputs.minecraft-versions) }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: release
-          path: ${{ runner.temp }}/release
-
-      # The packs built here are the same bytes as the released ones: what is tested is what is released
-      - name: Check the pack in the game
-        env:
-          MINECRAFT_VERSION: ${{ matrix.minecraft-version }}
-          RELEASED: ${{ runner.temp }}/release/build/released.sha256
-        run: |
-          make image
-          make
-          sha256sum -c "$RELEASED"
-          make game-client-test MINECRAFT_VERSION="$MINECRAFT_VERSION"
-
   # Makes the tag on the pushed commit along with the release (a tag pushed with this token would start no workflow)
   github-release:
-    needs: [build, game-client-test]
+    needs: build
     if: needs.build.outputs.release == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -129,7 +94,7 @@ jobs:
           TAG: ${{ needs.build.outputs.tag }}
           DIR: ${{ runner.temp }}/release
         run: |
-          gh release create "$TAG" "$DIR"/dist/*.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TAG" \
+          gh release create "$TAG" "$DIR"/*.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TAG" \
             --generate-notes --notes \
             "NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT."
 
@@ -157,7 +122,7 @@ jobs:
         with:
           modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          files: ${{ runner.temp }}/release/dist/${{ matrix.pack.zip }}
+          files: ${{ runner.temp }}/release/${{ matrix.pack.zip }}
           name: Kanji Grade Language Pack ${{ matrix.pack.version_number }}
           version: ${{ matrix.pack.version_number }}
           version-type: release

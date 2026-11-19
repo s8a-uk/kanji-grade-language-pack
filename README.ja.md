@@ -124,7 +124,7 @@ make game-client-tests  # 作ったパックを、対応する版ごとの Minec
 
 - `build.yml`：PR のたびに（マージの前に）、テスト、パックの作成、再現性の確認を行い、対応する版ごとにゲームで確かめ、スクリーンショットを artifact に残します。`main` には、これが通った PR だけが入ります。手で動かしたときは、zip も artifact に残します。
 - `check-minecraft-versions.yml`：毎日、Minecraft と Fabric の新しいもの（新しいリリース、新しい `ja_jp.json`、Fabric の新しいビルド）を調べ、実行のまとめに書きます。することがあるときは、通知が届くように実行を失敗で終わらせます。新しい版への追従は、`make update-minecraft-versions` から手で行います。
-- `release.yml`：`PACK_VERSION`（`versions.mk`）を上げた変更が `main` に入ると、パックを作って全部の版で確かめ、承認の後にタグ `v<PACK_VERSION>` と GitHub Release を作り、zip を付けます。リポジトリの変数 `MODRINTH_PROJECT_ID` とシークレット `MODRINTH_TOKEN` があれば、Modrinth にもパックごとに公開します（mc-publish）。
+- `release.yml`：`PACK_VERSION`（`versions.mk`）を上げた変更が `main` に入ると、テストとパックの作成をし（ゲームでのテストは PR で済んでいる）、承認の後にタグ `v<PACK_VERSION>` と GitHub Release を作り、zip を付けます。リポジトリの変数 `MODRINTH_PROJECT_ID` とシークレット `MODRINTH_TOKEN` があれば、Modrinth にもパックごとに公開します（mc-publish）。
 
 ## データの出典
 

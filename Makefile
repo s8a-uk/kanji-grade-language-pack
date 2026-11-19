@@ -189,9 +189,10 @@ GRADLE = timeout 1800 $(call DOCKER_RUN_ONLINE,$(GRADLE_WRITABLE) $(1)) --init \
 # The pack of one Minecraft version (MINECRAFT_VERSION=<version>; the newest by default) in that version's client on
 # Xvfb (game_client_test/): the game takes the pack, the seven languages are in the list, every string of each is in
 # the game. Screenshots: game_client_test/run/<version>/screenshots/
+# GRADLE_ARGUMENTS: more arguments of Gradle (build.yml retries with --refresh-dependencies after a failed download)
 game-client-test: $(PACK_ZIPS) game-client-test-image
 	$(CHECK_MINECRAFT_VERSION)
-	$(call GRADLE,) prodClientGameTest
+	$(call GRADLE,) $(GRADLE_ARGUMENTS) prodClientGameTest
 
 # The client test of every Minecraft version, one after another
 game-client-tests:
