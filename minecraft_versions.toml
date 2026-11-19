@@ -11,34 +11,34 @@
 [[minecraft]]
 version = "26.3"
 resource_pack_format = 97
-ja_jp_sha1 = "fd84aed93215e5c33d08e06f7627fce6dd5c7d9c"
+ja_jp_sha1 = "85dc75394aa814dde45d0e52898db787ebc00d2e"
 java_version = 25
 fabric_api_version = "0.166.2+26.3"
 
 [[minecraft]]
 version = "26.2"
 resource_pack_format = 88
-ja_jp_sha1 = "fd84aed93215e5c33d08e06f7627fce6dd5c7d9c"
+ja_jp_sha1 = "85dc75394aa814dde45d0e52898db787ebc00d2e"
 java_version = 25
 fabric_api_version = "0.161.0+26.2"
 
 [[minecraft]]
 version = "26.1.2"
 resource_pack_format = 84
-ja_jp_sha1 = "fd84aed93215e5c33d08e06f7627fce6dd5c7d9c"
+ja_jp_sha1 = "85dc75394aa814dde45d0e52898db787ebc00d2e"
 java_version = 25
 fabric_api_version = "0.155.3+26.1.2"
 
 [[minecraft]]
 version = "26.1.1"
 resource_pack_format = 84
-ja_jp_sha1 = "fd84aed93215e5c33d08e06f7627fce6dd5c7d9c"
+ja_jp_sha1 = "85dc75394aa814dde45d0e52898db787ebc00d2e"
 java_version = 25
 fabric_api_version = "0.145.4+26.1.1"
 
 [[minecraft]]
 version = "26.1"
 resource_pack_format = 84
-ja_jp_sha1 = "fd84aed93215e5c33d08e06f7627fce6dd5c7d9c"
+ja_jp_sha1 = "85dc75394aa814dde45d0e52898db787ebc00d2e"
 java_version = 25
 fabric_api_version = "0.145.1+26.1"
