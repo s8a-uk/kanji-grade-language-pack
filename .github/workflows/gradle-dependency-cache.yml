@@ -15,6 +15,9 @@ on:
       - game_client_test/**
       - minecraft_versions.toml
       - versions.mk
+      - Makefile
+      - .github/run-game-client-test-with-download-retries.sh
+      - .github/workflows/gradle-dependency-cache.yml
   schedule:
     - cron: "30 0 * * *" # every day 00:30 UTC
   workflow_dispatch:
