@@ -162,7 +162,11 @@ jobs:
         with:
           persist-credentials: false
 
+      # The download of the images (about 440 MB) takes seconds, but once took 30 minutes: after 5 minutes the job builds
+      # the images itself instead (make does when their stamps are missing)
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        continue-on-error: true
         with:
           name: images
           path: ${{ runner.temp }}/images
@@ -172,7 +176,10 @@ jobs:
       - name: Load the images
         run: |
           echo "GRADLE_CACHE=$RUNNER_TEMP/gradle" >> "$GITHUB_ENV"
-          zstd -dc "$RUNNER_TEMP/images/images.tar.zst" | docker load
+          if ! zstd -dc "$RUNNER_TEMP/images/images.tar.zst" | docker load; then
+            echo "::warning::The images could not be downloaded: this job builds them"
+            exit 0
+          fi
           mkdir -p build
           touch build/image.stamp
           for image in $(docker image ls --format '{{.Repository}}' | grep -E '^kanji-grade-language-pack-game-client-test-java[0-9]+$'); do
