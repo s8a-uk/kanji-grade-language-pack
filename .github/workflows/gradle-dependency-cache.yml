@@ -1,0 +1,67 @@
+name: Gradle dependency cache
+
+# Keeps the Gradle dependencies of the client tests (what Gradle downloads from Maven repositories: Loom, the libraries
+# of Minecraft, Fabric) in a cache of main, which build.yml's client tests restore: a pull request downloads only what
+# the cache does not have, instead of everything five times (Maven Central answers "429 Too Many Requests" to GitHub's
+# runners at times). Only main can make a cache that pull requests can read, and build.yml runs only on pull requests,
+# so this workflow makes it: when its key (the verification metadata and the Gradle wrapper) has no cache yet, it runs
+# the client test of every Minecraft version, one after another, and saves what Gradle downloaded. Every file is
+# checked against verification-metadata.xml wherever it is used. Runs on a push to main that may change the
+# dependencies, and once a day (a cache unused for 7 days is evicted).
+on:
+  push:
+    branches: [main]
+    paths:
+      - game_client_test/**
+      - minecraft_versions.toml
+      - versions.mk
+  schedule:
+    - cron: "30 0 * * *" # every day 00:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gradle-dependency-cache
+
+jobs:
+  cache:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The same paths as build.yml's restore (a cache is found only under the same paths)
+      - name: Name the cache
+        run: echo "GRADLE_CACHE=$RUNNER_TEMP/gradle" >> "$GITHUB_ENV"
+
+      - name: Look for the cache
+        id: lookup
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ env.GRADLE_CACHE }}/caches/modules-2
+            ${{ env.GRADLE_CACHE }}/wrapper/dists
+          key: gradle-dependencies-${{ hashFiles('game_client_test/gradle/verification-metadata.xml', 'game_client_test/gradle/wrapper/gradle-wrapper.properties') }}
+          lookup-only: true
+
+      - name: Download the dependencies (the client test of every Minecraft version)
+        if: steps.lookup.outputs.cache-hit != 'true'
+        run: |
+          make image
+          make
+          mkdir -p "$GRADLE_CACHE"
+          for version in $(make -s print-MINECRAFT_VERSIONS); do
+            bash .github/run-game-client-test-with-download-retries.sh "$version" GRADLE_CACHE_VOLUME="$GRADLE_CACHE"
+          done
+
+      - if: steps.lookup.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ env.GRADLE_CACHE }}/caches/modules-2
+            ${{ env.GRADLE_CACHE }}/wrapper/dists
+          key: gradle-dependencies-${{ hashFiles('game_client_test/gradle/verification-metadata.xml', 'game_client_test/gradle/wrapper/gradle-wrapper.properties') }}

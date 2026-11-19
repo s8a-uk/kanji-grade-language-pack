@@ -147,6 +147,8 @@ stops the build.
 - `build.yml`: on every pull request (before it is merged), runs the tests, builds the pack, checks it is
   reproducible, checks it in the game for each supported version, and keeps the screenshots as artifacts; `main`
   takes only pull requests whose checks passed. Run by hand, it also keeps the zip as an artifact.
+- `gradle-dependency-cache.yml`: keeps the Gradle dependencies of the client tests in a cache of `main`, which the
+  client tests of pull requests restore instead of downloading them again.
 - `check-minecraft-versions.yml`: every day, looks for what is new in Minecraft and Fabric (new releases, new
   `ja_jp.json` files, new builds of Fabric) and writes it in the summary of the run. When there is something to do, the
   run fails so that a notice is sent; following a new version is done by hand, starting with
