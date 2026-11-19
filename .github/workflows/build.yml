@@ -19,8 +19,6 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    outputs:
-      minecraft-versions: ${{ steps.versions.outputs.json }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -50,10 +48,6 @@ jobs:
         run: |
           make pack-icon
           git diff --exit-code data/pack_icon.png
-
-      - name: List the Minecraft versions
-        id: versions
-        run: echo "json=$(make -s minecraft-versions-json)" >> "$GITHUB_OUTPUT"
 
       # The zips hold text derived from Mojang's: kept a short time, and not for pull requests
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -120,28 +114,98 @@ jobs:
 
   # Every Minecraft version in its own client on Xvfb: the game takes the pack, the seven languages are in the list,
   # every string of each is in the game
-  game-client-test:
-    needs: build
+  # The build image and the client test's image of every Java, built once and given to the client tests: each image
+  # downloads its packages (the Ubuntu archive is slow at times) and Python's only here
+  images:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
-    strategy:
-      fail-fast: false
-      matrix:
-        minecraft-version: ${{ fromJSON(needs.build.outputs.minecraft-versions) }}
+    outputs:
+      minecraft-versions: ${{ steps.versions.outputs.json }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Build the packs
+      - name: Build the images
+        id: versions
         run: |
           make image
-          make
+          echo "json=$(make -s minecraft-versions-json)" >> "$GITHUB_OUTPUT"
+          for version in $(make -s print-MINECRAFT_VERSIONS); do
+            make game-client-test-image MINECRAFT_VERSION="$version"
+          done
+          mkdir -p "$RUNNER_TEMP/images"
+          docker image ls --format '{{.Repository}}' | grep -E '^kanji-grade-language-pack-' | sort -u \
+            | xargs docker save | zstd -T0 -3 -o "$RUNNER_TEMP/images/images.tar.zst"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: images
+          path: ${{ runner.temp }}/images/images.tar.zst
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
+
+  # Every Minecraft version in its own client on Xvfb: the game takes the pack, the seven languages are in the list,
+  # every string of each is in the game
+  game-client-test:
+    needs: images
+    runs-on: ubuntu-24.04
+    # Up to 4 runs of the test with 13 minutes of waiting between them, when downloads fail
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        minecraft-version: ${{ fromJSON(needs.images.outputs.minecraft-versions) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The download of the images (about 440 MB) takes seconds, but once took 30 minutes: after 5 minutes the job builds
+      # the images itself instead (make does when their stamps are missing)
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        continue-on-error: true
+        with:
+          name: images
+          path: ${{ runner.temp }}/images
+
+      # The stamps tell make the images are there (make would build them again otherwise). Gradle's cache is a
+      # directory, not a Docker volume, so the cache below can hold it
+      - name: Load the images
+        run: |
+          echo "GRADLE_CACHE=$RUNNER_TEMP/gradle" >> "$GITHUB_ENV"
+          if ! zstd -dc "$RUNNER_TEMP/images/images.tar.zst" | docker load; then
+            echo "::warning::The images could not be downloaded: this job builds them"
+            exit 0
+          fi
+          mkdir -p build
+          touch build/image.stamp
+          for image in $(docker image ls --format '{{.Repository}}' | grep -E '^kanji-grade-language-pack-game-client-test-java[0-9]+$'); do
+            touch "build/game-client-test-image.java${image##*-java}.stamp"
+          done
+
+      # The Gradle dependencies (Maven repositories) as gradle-dependency-cache.yml keeps them on main: what is there is
+      # not downloaded again (each file is checked against verification-metadata.xml all the same)
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ env.GRADLE_CACHE }}/caches/modules-2
+            ${{ env.GRADLE_CACHE }}/wrapper/dists
+          key: gradle-dependencies-${{ hashFiles('game_client_test/gradle/verification-metadata.xml', 'game_client_test/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-dependencies-
+
+      - name: Build the packs
+        run: make
 
       - name: Check the pack in the game
         env:
           MINECRAFT_VERSION: ${{ matrix.minecraft-version }}
-        run: make game-client-test MINECRAFT_VERSION="$MINECRAFT_VERSION"
+        run: |
+          mkdir -p "$GRADLE_CACHE"
+          bash .github/run-game-client-test-with-download-retries.sh "$MINECRAFT_VERSION" \
+            GRADLE_CACHE_VOLUME="$GRADLE_CACHE"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
@@ -156,7 +220,7 @@ jobs:
   all-checks-passed:
     name: all checks passed
     if: always()
-    needs: [build, pack-diff, game-client-test]
+    needs: [build, pack-diff, images, game-client-test]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

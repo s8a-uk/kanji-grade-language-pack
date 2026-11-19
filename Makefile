@@ -57,7 +57,8 @@ VERSION_PACK_ZIP = $(PACK_ZIP.$(VERSION_JA_JP_SHA1))
 # The client test of a Minecraft version runs on the Java it runs on: one image per major version of Java, built from
 # game_client_test/docker/java<N>/
 VERSION_JAVA = $(JAVA_VERSION.$(MINECRAFT_VERSION))
-GAME_CLIENT_TEST_IMAGE = kanji-grade-language-pack-game-client-test-java$(VERSION_JAVA)
+GAME_CLIENT_TEST_IMAGE_PREFIX := kanji-grade-language-pack-game-client-test-java
+GAME_CLIENT_TEST_IMAGE = $(GAME_CLIENT_TEST_IMAGE_PREFIX)$(VERSION_JAVA)
 GAME_CLIENT_TEST_DOCKERFILE_DIRECTORY = game_client_test/docker/java$(VERSION_JAVA)
 READING_MARKUPS := $(foreach s,$(JA_JP_SHA1S),build/ja_jp_reading_markup.$(s).json)
 # The pack of the newest Minecraft version (make -s print-LATEST_PACK_ZIP, for the workflows)
@@ -167,12 +168,17 @@ $(ICON_FONT): | $(IMAGE_STAMP)
 pack-icon: $(ICON_FONT)
 	$(OFFLINE) pack-icon --font $(ICON_FONT) --out $(PACK_ICON)
 
-# The image of the client test for the Java of MINECRAFT_VERSION
+# The image of the client test for the Java of MINECRAFT_VERSION, built again when its Dockerfile changes (a stamp per
+# Java, like the build image's; build.yml builds the images once and gives them to every job with their stamps)
 game-client-test-image:
 	$(CHECK_MINECRAFT_VERSION)
 	@test -f $(GAME_CLIENT_TEST_DOCKERFILE_DIRECTORY)/Dockerfile || { echo "Minecraft $(MINECRAFT_VERSION) runs on \
 	Java $(VERSION_JAVA): add $(GAME_CLIENT_TEST_DOCKERFILE_DIRECTORY)/Dockerfile (copy another Java's)"; exit 1; }
-	docker build --build-arg UID=$$(id -u) -t $(GAME_CLIENT_TEST_IMAGE) $(GAME_CLIENT_TEST_DOCKERFILE_DIRECTORY)
+	@$(MAKE) --no-print-directory build/game-client-test-image.java$(VERSION_JAVA).stamp
+
+build/game-client-test-image.java%.stamp: game_client_test/docker/java%/Dockerfile
+	docker build --build-arg UID=$$(id -u) -t $(GAME_CLIENT_TEST_IMAGE_PREFIX)$* game_client_test/docker/java$*
+	mkdir -p build && touch $@
 
 GRADLE_PROPERTIES = -Pminecraft_version=$(MINECRAFT_VERSION) -Pjava_version=$(VERSION_JAVA) \
 	-Pfabric_loader_version=$(FABRIC_LOADER_VERSION) \
@@ -189,9 +195,10 @@ GRADLE = timeout 1800 $(call DOCKER_RUN_ONLINE,$(GRADLE_WRITABLE) $(1)) --init \
 # The pack of one Minecraft version (MINECRAFT_VERSION=<version>; the newest by default) in that version's client on
 # Xvfb (game_client_test/): the game takes the pack, the seven languages are in the list, every string of each is in
 # the game. Screenshots: game_client_test/run/<version>/screenshots/
+# GRADLE_ARGUMENTS: more arguments of Gradle (build.yml retries with --refresh-dependencies after a failed download)
 game-client-test: $(PACK_ZIPS) game-client-test-image
 	$(CHECK_MINECRAFT_VERSION)
-	$(call GRADLE,) prodClientGameTest
+	$(call GRADLE,) $(GRADLE_ARGUMENTS) prodClientGameTest
 
 # The client test of every Minecraft version, one after another
 game-client-tests:
