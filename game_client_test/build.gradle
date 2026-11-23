@@ -1,0 +1,68 @@
+// A test mod run in a production Minecraft client (Loom's ClientProductionRunTask, on Xvfb): it turns on the pack
+// built in dist/ and checks it in the game (src/main/java/kanjigradepack/test/LanguagePackClientTest.java).
+// make game-client-test runs it with the versions of versions.mk and minecraft_versions.toml (-P); screenshots go to
+// run/<Minecraft version>/screenshots/.
+plugins {
+	id 'net.fabricmc.fabric-loom'
+}
+
+// The -P values from make (a missing one stops the build)
+def requiredGradleProperty = { name -> providers.gradleProperty(name).get() }
+
+repositories {
+}
+
+configurations {
+	// Mods loaded next to the test mod. Not transitive: the fabric-api jar holds its modules
+	productionRuntimeMods {
+		transitive = false
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${requiredGradleProperty('minecraft_version')}"
+	implementation "net.fabricmc:fabric-loader:${requiredGradleProperty('fabric_loader_version')}"
+	implementation fabricApi.module("fabric-client-gametest-api-v1", requiredGradleProperty('fabric_api_version'))
+
+	productionRuntimeMods "net.fabricmc.fabric-api:fabric-api:${requiredGradleProperty('fabric_api_version')}"
+	// The client GameTest module is not in the fabric-api jar
+	productionRuntimeMods fabricApi.module("fabric-client-gametest-api-v1", requiredGradleProperty('fabric_api_version'))
+}
+
+// -Pjava_version: the Java the Minecraft version runs on (java_version in minecraft_versions.toml); the test mod is
+// compiled for it and runs in the image of that Java (docker/java<N>/)
+def javaRelease = requiredGradleProperty('java_version').toInteger()
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = javaRelease
+}
+
+// -Ppack=<the pack zip>: copied into the client's resourcepacks/ before the client starts
+def packZip = file(requiredGradleProperty('pack'))
+// One run directory per Minecraft version: run/<version>/ (screenshots in run/<version>/screenshots/)
+def runDirectory = layout.projectDirectory.dir('run/' + requiredGradleProperty('minecraft_version'))
+
+tasks.register('prodClientGameTest', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+	group = 'verification'
+	mods.from(configurations.productionRuntimeMods)
+	mods.from(tasks.named('jar'))
+	useXVFB = true
+	// A test: run every time, never taken as up to date
+	outputs.upToDateWhen { false }
+	jvmArgs.add('-Dfabric.client.gametest')
+	jvmArgs.add('-Dkanji_grade_language_pack.pack=' + packZip.absolutePath)
+	runDir = runDirectory
+	doFirst {
+		if (!packZip.isFile()) {
+			throw new GradleException("no pack at ${packZip}: run make first")
+		}
+		// Only this pack in resourcepacks/: no zips of earlier runs
+		def packs = new File(runDirectory.asFile, 'resourcepacks')
+		packs.deleteDir()
+		packs.mkdirs()
+		java.nio.file.Files.copy(packZip.toPath(), new File(packs, packZip.name).toPath(),
+			java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+		// Every run starts as a first launch: no options (resource packs, language) from the last one
+		new File(runDirectory.asFile, 'options.txt').delete()
+		new File(runDirectory.asFile, 'screenshots').deleteDir()
+	}
+}

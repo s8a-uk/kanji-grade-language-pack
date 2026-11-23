@@ -1,0 +1,235 @@
+name: build
+
+# Every pull request is checked here before it is merged (the ruleset of main requires the job "all checks passed"
+# and the pull request to be up to date with main), so what is merged is what was checked: a push to main is not
+# checked again (release.yml checks everything itself when it releases). workflow_dispatch builds any branch, and keeps
+# its zips as an artifact.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The build image runs as the runner's user (make passes its UID), so it can write build/ and dist/
+      - name: Build the image
+        run: make image
+
+      - name: Test the Python code
+        run: make test
+
+      # Downloads every ja_jp.json of minecraft_versions.toml, reads them, builds a pack for each; stops on a failed check
+      - name: Build the packs
+        run: make
+
+      - name: Check that the same inputs give the same zips
+        run: |
+          first=$(sha256sum dist/kanji-grade-ja-*.zip)
+          rm dist/kanji-grade-ja-*.zip build/ja_jp_reading_markup.*.json
+          make
+          second=$(sha256sum dist/kanji-grade-ja-*.zip)
+          echo "$first"; echo "$second"
+          [ "$first" = "$second" ]
+
+      - name: Check that data/pack_icon.png is what make pack-icon draws
+        run: |
+          make pack-icon
+          git diff --exit-code data/pack_icon.png
+
+      # The zips hold text derived from Mojang's: kept a short time, and not for pull requests
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name != 'pull_request'
+        with:
+          name: kanji-grade-language-pack
+          path: dist/kanji-grade-ja-*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  # A pull request: the packs of its base and its own, and the strings that differ in each language (in the summary of
+  # the run), so a change of the readings, the rules or SudachiDict is seen before it is merged
+  pack-diff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: head
+          persist-credentials: false
+
+      # The newest Minecraft version's pack of each side (the base first: both build the image of the same name)
+      - name: Build both packs and compare them
+        run: |
+          make -C base image
+          make -C base
+          base_zip=$(make -s -C base print-LATEST_PACK_ZIP)
+          mkdir -p head/build
+          cp "base/$base_zip" head/build/base_pack.zip
+          make -C head image
+          make -C head
+          head_zip=$(make -s -C head print-LATEST_PACK_ZIP)
+          make -C head pack-diff PREVIOUS=build/base_pack.zip NEW="$head_zip"
+          base_tag=$(make -s -C base print-RELEASE_TAG)
+          head_tag=$(make -s -C head print-RELEASE_TAG)
+          # The pack changes (other bytes, or another name: a Minecraft version added) but PACK_VERSION does not
+          packs_change=false
+          if [ "$(basename "$base_zip")" != "$(basename "$head_zip")" ] || ! cmp -s "base/$base_zip" "head/$head_zip"; then
+            packs_change=true
+          fi
+          {
+            if [ "$base_tag" != "$head_tag" ]; then
+              echo "**Merging this pull request releases $head_tag** (release.yml: tests, approval, GitHub Release, Modrinth)."
+            elif [ "$packs_change" = true ]; then
+              echo "**The pack changes but PACK_VERSION stays at ${base_tag#v}: merging releases nothing.** Raise PACK_VERSION in versions.mk to release it."
+            else
+              echo "Merging this pull request releases nothing: PACK_VERSION stays at ${base_tag#v}."
+            fi
+            echo
+            echo "## The packs: base ($base_zip) and this pull request ($head_zip)"
+            echo
+            cat head/build/pack_diff.md
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$base_tag" = "$head_tag" ] && [ "$packs_change" = true ]; then
+            echo "::warning::The pack changes but PACK_VERSION stays at ${base_tag#v}: merging releases nothing"
+          fi
+
+  # Every Minecraft version in its own client on Xvfb: the game takes the pack, the seven languages are in the list,
+  # every string of each is in the game
+  # The build image and the client test's image of every Java, built once and given to the client tests: each image
+  # downloads its packages (the Ubuntu archive is slow at times) and Python's only here
+  images:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    outputs:
+      minecraft-versions: ${{ steps.versions.outputs.json }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the images
+        id: versions
+        run: |
+          make image
+          echo "json=$(make -s minecraft-versions-json)" >> "$GITHUB_OUTPUT"
+          for version in $(make -s print-MINECRAFT_VERSIONS); do
+            make game-client-test-image MINECRAFT_VERSION="$version"
+          done
+          mkdir -p "$RUNNER_TEMP/images"
+          docker image ls --format '{{.Repository}}' | grep -E '^kanji-grade-language-pack-' | sort -u \
+            | xargs docker save | zstd -T0 -3 -o "$RUNNER_TEMP/images/images.tar.zst"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: images
+          path: ${{ runner.temp }}/images/images.tar.zst
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
+
+  # Every Minecraft version in its own client on Xvfb: the game takes the pack, the seven languages are in the list,
+  # every string of each is in the game
+  game-client-test:
+    needs: images
+    runs-on: ubuntu-24.04
+    # Up to 4 runs of the test with 13 minutes of waiting between them, when downloads fail
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        minecraft-version: ${{ fromJSON(needs.images.outputs.minecraft-versions) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The download of the images (about 440 MB) takes seconds, but once took 30 minutes: after 5 minutes the job builds
+      # the images itself instead (make does when their stamps are missing)
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        continue-on-error: true
+        with:
+          name: images
+          path: ${{ runner.temp }}/images
+
+      # The stamps tell make the images are there (make would build them again otherwise). Gradle's cache is a
+      # directory, not a Docker volume, so the cache below can hold it
+      - name: Load the images
+        run: |
+          echo "GRADLE_CACHE=$RUNNER_TEMP/gradle" >> "$GITHUB_ENV"
+          if ! zstd -dc "$RUNNER_TEMP/images/images.tar.zst" | docker load; then
+            echo "::warning::The images could not be downloaded: this job builds them"
+            exit 0
+          fi
+          mkdir -p build
+          touch build/image.stamp
+          for image in $(docker image ls --format '{{.Repository}}' | grep -E '^kanji-grade-language-pack-game-client-test-java[0-9]+$'); do
+            touch "build/game-client-test-image.java${image##*-java}.stamp"
+          done
+
+      # The Gradle dependencies (Maven repositories) as gradle-dependency-cache.yml keeps them on main: what is there is
+      # not downloaded again (each file is checked against verification-metadata.xml all the same)
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ env.GRADLE_CACHE }}/caches/modules-2
+            ${{ env.GRADLE_CACHE }}/wrapper/dists
+          key: gradle-dependencies-${{ hashFiles('game_client_test/gradle/verification-metadata.xml', 'game_client_test/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-dependencies-
+
+      - name: Build the packs
+        run: make
+
+      - name: Check the pack in the game
+        env:
+          MINECRAFT_VERSION: ${{ matrix.minecraft-version }}
+        run: |
+          mkdir -p "$GRADLE_CACHE"
+          bash .github/run-game-client-test-with-download-retries.sh "$MINECRAFT_VERSION" \
+            GRADLE_CACHE_VOLUME="$GRADLE_CACHE"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: screenshots-${{ matrix.minecraft-version }}
+          path: game_client_test/run/${{ matrix.minecraft-version }}/screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # The one check the ruleset of main requires: every job above passed (the client tests are one job per Minecraft
+  # version, whose names change with minecraft_versions.toml)
+  all-checks-passed:
+    name: all checks passed
+    if: always()
+    needs: [build, pack-diff, images, game-client-test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check the results of the jobs
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$RESULTS"
+          for result in $RESULTS; do
+            # pack-diff is skipped when the workflow is not run for a pull request
+            [ "$result" = success ] || [ "$result" = skipped ] || exit 1
+          done

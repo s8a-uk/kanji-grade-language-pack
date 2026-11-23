@@ -1,0 +1,560 @@
+# Fixes of the readings and the splitting that Sudachi gives. Read by src/kanji_grade_language_pack/reading_fixes.py,
+# which describes every table. A fix that matches nothing any more stops the build (make annotate-readings).
+# To check a fix: make show-string KEY=<key of ja_jp.json>
+
+# Words read in a way the 常用漢字表 and its 付表 do not list (ateji, names): always written in kana
+unsplit_words = [
+  "欠片",
+  "真似る",
+  "可愛らしい",
+  "松明",
+  "火傷",
+  "香港",
+  "谷岡久美",
+]
+
+# Readings a kanji takes inside words that the 常用漢字表 does not list
+[extra_kanji_readings]
+"来" = ["き", "こ"]
+"文" = ["も"]
+"日" = ["に"]
+"達" = ["たち"]
+"応" = ["のう"]
+
+# Readings Sudachi gets wrong wherever the word appears
+
+[[word_reading]]
+word = "一回"
+sudachi = "いちかい"
+reading = "いっかい"
+
+[[word_reading]]
+word = "上半"
+sudachi = "かみはん"
+reading = "じょうはん"
+
+[[word_reading]]
+word = "下半"
+sudachi = "しもはん"
+reading = "かはん"
+
+[[word_reading]]
+word = "体"
+sudachi = "からだ"
+reading = "たい"
+
+[[word_reading]]
+word = "兎"
+sudachi = "と"
+reading = "うさぎ"
+
+[[word_reading]]
+word = "召"
+sudachi = "めし"
+reading = "しょう"
+
+[[word_reading]]
+word = "埋もれ"
+sudachi = "うずもれ"
+reading = "うもれ"
+
+[[word_reading]]
+word = "帯"
+sudachi = "たい"
+reading = "おび"
+
+[[word_reading]]
+word = "弾ける"
+sudachi = "ひける"
+reading = "はじける"
+
+[[word_reading]]
+word = "日前"
+sudachi = "ひのくま"
+reading = "にちまえ"
+
+[[word_reading]]
+word = "日本"
+sudachi = "にっぽん"
+reading = "にほん"
+
+[[word_reading]]
+word = "柄"
+sudachi = "がら"
+reading = "え"
+
+[[word_reading]]
+word = "樽"
+sudachi = "そん"
+reading = "たる"
+
+[[word_reading]]
+word = "欲し"
+sudachi = "ほっし"
+reading = "ほし"
+
+[[word_reading]]
+word = "正しく"
+sudachi = "まさしく"
+reading = "ただしく"
+
+[[word_reading]]
+word = "氷玉"
+sudachi = "ひだま"
+reading = "こおりだま"
+
+[[word_reading]]
+word = "波"
+sudachi = "は"
+reading = "なみ"
+
+[[word_reading]]
+word = "焼き豚"
+sudachi = "やきとん"
+reading = "やきぶた"
+
+[[word_reading]]
+word = "物"
+sudachi = "もの"
+reading = "ぶつ"
+
+[[word_reading]]
+word = "白色"
+sudachi = "はくしょく"
+reading = "しろいろ"
+
+[[word_reading]]
+word = "石"
+sudachi = "こく"
+reading = "せき"
+
+[[word_reading]]
+word = "私"
+sudachi = "わたくし"
+reading = "わたし"
+
+[[word_reading]]
+word = "種"
+sudachi = "しゅ"
+reading = "たね"
+
+[[word_reading]]
+word = "空か"
+sudachi = "あか"
+reading = "からか"
+
+[[word_reading]]
+word = "端"
+sudachi = "たん"
+reading = "はし"
+
+[[word_reading]]
+word = "荒野"
+sudachi = "あらの"
+reading = "こうや"
+
+[[word_reading]]
+word = "蓄風"
+sudachi = "蓄風"
+reading = "ちくふう"
+
+[[word_reading]]
+word = "行"
+sudachi = "こう"
+reading = "ぎょう"
+
+[[word_reading]]
+word = "西日本"
+sudachi = "にしにっぽん"
+reading = "にしにほん"
+
+[[word_reading]]
+word = "解ける"
+sudachi = "とける"
+reading = "ほどける"
+
+[[word_reading]]
+word = "金"
+sudachi = "かね"
+reading = "きん"
+
+[[word_reading]]
+word = "鍛冶"
+sudachi = "たんや"
+reading = "かじ"
+
+[[word_reading]]
+word = "革職"
+sudachi = "かくしょく"
+reading = "かわしょく"
+
+[[word_reading]]
+word = "高原"
+sudachi = "たかはら"
+reading = "こうげん"
+
+[[word_reading]]
+word = "鶏肉"
+sudachi = "けいにく"
+reading = "とりにく"
+
+# Readings Sudachi gets wrong in one string
+
+[[word_reading]]
+key = "advancements.adventure.brush_armadillo.title"
+word = "鱗"
+sudachi = "うろこ"
+reading = "りん"
+
+[[word_reading]]
+key = "advancements.adventure.minecraft_trials_edition.description"
+word = "間"
+sudachi = "あいだ"
+reading = "ま"
+
+[[word_reading]]
+key = "advancements.adventure.two_birds_one_arrow.title"
+word = "一"
+sudachi = "いち"
+reading = "いっ"
+
+[[word_reading]]
+key = "advancements.husbandry.silk_touch_nest.description"
+word = "匹"
+sudachi = "ひき"
+reading = "びき"
+
+[[word_reading]]
+key = "advancements.nether.find_bastion.title"
+word = "兵"
+sudachi = "へい"
+reading = "つわもの"
+
+[[word_reading]]
+key = "advancements.nether.ride_strider_in_overworld_lava.description"
+word = "長"
+sudachi = "ちょう"
+reading = "なが"
+
+[[word_reading]]
+key = "attribute.name.below_name_distance"
+word = "下"
+sudachi = "か"
+reading = "した"
+
+[[word_reading]]
+key = "biome.minecraft.mushroom_fields"
+word = "島"
+sudachi = "とう"
+reading = "じま"
+
+[[word_reading]]
+key = "block.minecraft.bubble_column"
+word = "柱"
+sudachi = "はしら"
+reading = "ちゅう"
+
+[[word_reading]]
+key = "block.minecraft.ochre_froglight"
+word = "色"
+sudachi = "しょく"
+reading = "いろ"
+
+[[word_reading]]
+key = "block.minecraft.verdant_froglight"
+word = "緑色"
+sudachi = "りょくしょく"
+reading = "りょくいろ"
+
+[[word_reading]]
+key = "commands.bossbar.get.players.some"
+word = "人"
+sudachi = "ひと"
+reading = "にん"
+
+[[word_reading]]
+key = "commands.datapack.create.success"
+word = "空"
+sudachi = "そら"
+reading = "から"
+
+[[word_reading]]
+key = "commands.scoreboard.objectives.display.alreadyEmpty"
+word = "空"
+sudachi = "そら"
+reading = "から"
+
+[[word_reading]]
+key = "container.upgrade.missing_template_tooltip"
+word = "型"
+sudachi = "けい"
+reading = "がた"
+
+[[word_reading]]
+key = "enchantment.minecraft.fire_aspect"
+word = "火"
+sudachi = "か"
+reading = "ひ"
+
+[[word_reading]]
+key = "enchantment.minecraft.luck_of_the_sea"
+word = "釣り"
+sudachi = "つり"
+reading = "づり"
+
+[[word_reading]]
+key = "key.keyboard.down"
+word = "下"
+sudachi = "か"
+reading = "した"
+
+[[word_reading]]
+key = "key.keyboard.up"
+word = "上"
+sudachi = "じょう"
+reading = "うえ"
+
+[[word_reading]]
+key = "mco.configure.world.subscription.day"
+word = "日"
+sudachi = "ひ"
+reading = "にち"
+
+[[word_reading]]
+key = "mco.configure.world.subscription.days"
+word = "日"
+sudachi = "ひ"
+reading = "にち"
+
+[[word_reading]]
+key = "selectWorld.backupWarning.downgrade"
+word = "行っ"
+sudachi = "いっ"
+reading = "おこなっ"
+
+[[word_reading]]
+key = "stat.minecraft.target_hit"
+word = "的"
+sudachi = "てき"
+reading = "まと"
+
+[[word_reading]]
+key = "structure_block.mode_info.data"
+word = "物ごと"
+sudachi = "ものごと"
+reading = "ぶつごと"
+
+[[word_reading]]
+key = "subtitles.block.potent_sulfur.geyser_eruption"
+word = "硫"
+sudachi = "りゅう"
+reading = "い"
+
+[[word_reading]]
+key = "subtitles.block.potent_sulfur.geyser_eruption"
+word = "黄泉"
+sudachi = "こうせん"
+reading = "おうせん"
+
+[[word_reading]]
+key = "subtitles.entity.goat.horn_break"
+word = "角"
+sudachi = "かど"
+reading = "つの"
+
+[[word_reading]]
+key = "subtitles.entity.villager.work_mason"
+word = "石工"
+sudachi = "せっこう"
+reading = "いしく"
+
+[[word_reading]]
+key = "subtitles.item.lead.untied"
+word = "解か"
+sudachi = "とか"
+reading = "ほどか"
+
+# Readings that depend on the words around
+
+# 空にする, 空になる, 空です: empty, not the sky
+[[word_reading]]
+word = "空"
+sudachi = "そら"
+reading = "から"
+next_word_in = ["に", "です", "で", "撃ち", ""]
+
+# このカテゴリは現在空のようです
+[[word_reading]]
+key = "mco.template.select.none"
+word = "空"
+sudachi = "そら"
+reading = "から"
+
+# 何か, 何も, 何を, 何が (何ら stays なんら)
+[[word_reading]]
+word = "何"
+sudachi = "なん"
+reading = "なに"
+next_word_in = ["か", "も", "を", "が"]
+
+# 他のプレイヤー
+[[word_reading]]
+word = "他"
+sudachi = "た"
+reading = "ほか"
+next_word_in = ["の"]
+
+# その他の設定 stays そのた
+[[word_reading]]
+word = "他"
+sudachi = "た"
+reading = "た"
+previous_word_in = ["その"]
+next_word_in = ["の"]
+
+# 2日目, 7日: Sudachi reads the counter of the date (ふつか); the digits stay digits
+[[word_reading]]
+word = "日"
+sudachi = "か"
+reading = "にち"
+after = "number"
+
+# %s日
+[[word_reading]]
+word = "日"
+sudachi = "ひ"
+reading = "にち"
+after = "placeholder"
+
+# 5日間
+[[word_reading]]
+word = "日間"
+sudachi = "かかん"
+reading = "にちかん"
+after = "number"
+
+# 過去%s日間
+[[word_reading]]
+word = "日間"
+sudachi = "かかん"
+reading = "にちかん"
+after = "placeholder"
+
+# %s分 (minutes)
+[[word_reading]]
+word = "分"
+sudachi = "ぶん"
+reading = "ふん"
+after = "placeholder"
+
+# 中くらい
+[[word_reading]]
+word = "中"
+sudachi = "なか"
+reading = "ちゅう"
+next_word_in = ["くらい"]
+
+# 〜入り植木鉢
+[[word_reading]]
+word = "入り"
+sudachi = "はいり"
+reading = "いり"
+next_word_in = ["植木鉢"]
+
+# 実がなった, カカオの実 (実時間 stays じつ)
+[[word_reading]]
+word = "実"
+sudachi = "じつ"
+reading = "み"
+next_word_in = ["が", ""]
+
+# 開始日, 請求日
+[[word_reading]]
+word = "日"
+sudachi = "ひ"
+reading = "び"
+previous_word_in = ["開始", "請求"]
+
+# 通常時
+[[word_reading]]
+word = "時"
+sudachi = "とき"
+reading = "じ"
+previous_word_in = ["通常"]
+
+# ミツバチの数
+[[word_reading]]
+word = "数"
+sudachi = "すう"
+reading = "かず"
+previous_word_in = ["の"]
+
+# 九生 (nine lives)
+[[word_reading]]
+word = "生"
+sudachi = "せい"
+reading = "しょう"
+previous_word_in = ["九"]
+
+# 試練の間 (the trial chambers) on a map
+[[word_reading]]
+key = "filled_map.trial_chambers"
+word = "間"
+sudachi = "あいだ"
+reading = "ま"
+
+# 試練の間 (the trial chambers) on a map
+[[word_reading]]
+key = "item.minecraft.buried_trial_chambers_map"
+word = "間"
+sudachi = "あいだ"
+reading = "ま"
+
+# 試練の間 (the trial chambers) on a map
+[[word_reading]]
+key = "item.minecraft.trial_explorer_map"
+word = "間"
+sudachi = "あいだ"
+reading = "ま"
+
+# a world that this version cannot open
+[[word_reading]]
+key = "selectWorld.incompatible.description"
+word = "開け"
+sudachi = "あけ"
+reading = "ひらけ"
+
+# Sudachi reads these words two ways; one reading everywhere
+
+# 大釜
+[[word_reading]]
+word = "大釜"
+sudachi = "おおかま"
+reading = "おおがま"
+
+# 羊肉
+[[word_reading]]
+word = "羊肉"
+sudachi = "ようにく"
+reading = "ひつじにく"
+
+# 生鱈
+[[word_reading]]
+word = "生鱈"
+sudachi = "なまたら"
+reading = "なまだら"
+
+# Words Sudachi reads as names (固有名詞-人名), looked at and read right: a rule with Sudachi's own reading marks them as
+# looked at (the build stops on a name with no fix)
+
+# 小玉, the shape of a firework star
+[[word_reading]]
+key = "item.minecraft.firework_star.shape.small_ball"
+word = "小玉"
+sudachi = "こだま"
+reading = "こだま"
+
+# The whole reading markup of one string, when no rule can express it
+[string_markup]
+# 当分の間村から: Sudachi reads 間村 as a name; it is 当分の間 + 村から
+"advancements.adventure.voluntary_exile.description" = "⟦襲撃|しゅうげき⟧⟦隊|たい⟧の‸⟦大|たい⟧⟦将|しょう⟧を‸⟦倒|たお⟧す。\n⟦当|とう⟧⟦分|ぶん⟧の‸⟦間|あいだ⟧‸⟦村|むら⟧から‸⟦離|はな⟧れて‸⟦過|す⟧ごされて‸みては‸いかがでしょうか…"

@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "kanji_grade_language_pack_test",
+	"version": "1.0.0",
+	"name": "Kanji Grade Language Pack client test",
+	"environment": "client",
+	"entrypoints": {
+		"fabric-client-gametest": [
+			"kanjigradepack.test.LanguagePackClientTest"
+		]
+	},
+	"depends": {
+		"fabric-client-gametest-api-v1": "*"
+	}
+}

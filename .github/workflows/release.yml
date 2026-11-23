@@ -1,0 +1,133 @@
+name: release
+
+# A push to main (a merged pull request) whose PACK_VERSION (versions.mk) has no tag v<PACK_VERSION> yet (make -s
+# print-RELEASE_TAG) releases it: runs the tests, builds the packs, and makes the tag and a GitHub Release with all the
+# zips on the pushed commit. The client test of every Minecraft version is not run again: the ruleset of main takes
+# only pull requests up to date with main whose checks (build.yml, the client tests included) passed, and the same
+# inputs give the same zips. When the repository variable MODRINTH_PROJECT_ID is set (and the secret
+# MODRINTH_TOKEN of the environment release), each pack is also published on Modrinth for its Minecraft versions. A
+# push whose PACK_VERSION already has its tag releases nothing. The build and test jobs have a read-only token; the
+# jobs that publish run in the environment release (its reviewers approve them; make github-settings sets it up) and
+# run nothing from the build. A release that fails after its tag is made is not repaired: raise PACK_VERSION.
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: release
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      release: ${{ steps.tag.outputs.release }}
+      tag: ${{ steps.tag.outputs.tag }}
+      packs: ${{ steps.lists.outputs.packs }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # A failed lookup stops the run (it is not taken for a missing tag)
+      - name: Look for the tag of PACK_VERSION
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(make -s print-RELEASE_TAG)
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "not a release tag: $tag"; exit 1; }
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          found=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$tag" \
+            --jq "map(select(.ref == \"refs/tags/$tag\")) | length")
+          if [ "$found" != "0" ]; then
+            echo "$tag is released already: nothing to release (raise PACK_VERSION to release)" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Releasing $tag" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and test
+        if: steps.tag.outputs.release == 'true'
+        run: |
+          make image
+          make test
+          make
+          sha256sum dist/kanji-grade-ja-*.zip
+
+      - name: List the packs
+        if: steps.tag.outputs.release == 'true'
+        id: lists
+        run: echo "packs=$(make -s pack-groups)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.tag.outputs.release == 'true'
+        with:
+          name: release
+          path: dist/kanji-grade-ja-*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  # Makes the tag on the pushed commit along with the release (a tag pushed with this token would start no workflow)
+  github-release:
+    needs: build
+    if: needs.build.outputs.release == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: ${{ runner.temp }}/release
+
+      - name: Make the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.build.outputs.tag }}
+          DIR: ${{ runner.temp }}/release
+        run: |
+          gh release create "$TAG" "$DIR"/*.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TAG" \
+            --generate-notes --notes \
+            "NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT."
+
+  # One Modrinth version per pack, for the Minecraft versions it is made for; one after another, oldest first, so the
+  # newest Minecraft's is the newest on Modrinth
+  modrinth:
+    needs: [build, github-release]
+    if: needs.build.outputs.release == 'true' && vars.MODRINTH_PROJECT_ID != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: read
+    strategy:
+      max-parallel: 1
+      matrix:
+        pack: ${{ fromJSON(needs.build.outputs.packs) }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: ${{ runner.temp }}/release
+
+      - uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
+        with:
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          files: ${{ runner.temp }}/release/${{ matrix.pack.zip }}
+          name: Kanji Grade Language Pack ${{ matrix.pack.version_number }}
+          version: ${{ matrix.pack.version_number }}
+          version-type: release
+          loaders: minecraft
+          # One version per line (a line with spaces would be a range); exactly these, not filtered
+          game-versions: ${{ matrix.pack.game_versions_lines }}
+          game-version-filter: none
+          changelog: https://github.com/${{ github.repository }}/releases/tag/${{ needs.build.outputs.tag }}

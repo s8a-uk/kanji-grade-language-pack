@@ -1,0 +1,16 @@
+pluginManagement {
+	repositories {
+		maven {
+			name = 'Fabric'
+			url = 'https://maven.fabricmc.net/'
+		}
+		mavenCentral()
+		gradlePluginPortal()
+	}
+	plugins {
+		// -Pfabric_loom_version from versions.mk (make game-client-test)
+		id 'net.fabricmc.fabric-loom' version providers.gradleProperty('fabric_loom_version').get()
+	}
+}
+
+rootProject.name = 'game-client-test'
