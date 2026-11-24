@@ -97,7 +97,7 @@ jobs:
           fi
           {
             if [ "$base_tag" != "$head_tag" ]; then
-              echo "**Merging this pull request releases $head_tag** (release.yml: tests, approval, GitHub Release, Modrinth)."
+              echo "**Merging this pull request releases $head_tag** (release.yml: tests, GitHub Release, Modrinth)."
             elif [ "$packs_change" = true ]; then
               echo "**The pack changes but PACK_VERSION stays at ${base_tag#v}: merging releases nothing.** Raise PACK_VERSION in versions.mk to release it."
             else

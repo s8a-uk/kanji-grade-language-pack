@@ -7,7 +7,7 @@ name: release
 # inputs give the same zips. When the repository variable MODRINTH_PROJECT_ID is set (and the secret
 # MODRINTH_TOKEN of the environment release), each pack is also published on Modrinth for its Minecraft versions. A
 # push whose PACK_VERSION already has its tag releases nothing. The build and test jobs have a read-only token; the
-# jobs that publish run in the environment release (its reviewers approve them; make github-settings sets it up) and
+# jobs that publish run in the environment release (only from main, no approval; make github-settings sets it up) and
 # run nothing from the build. A release that fails after its tag is made is not repaired: raise PACK_VERSION.
 on:
   push:

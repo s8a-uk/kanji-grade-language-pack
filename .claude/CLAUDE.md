@@ -135,7 +135,7 @@ https://fabricmc.net/develop）、その Java のイメージ（`docker/java<N>/
 
 - リリースするには、PR で `versions.mk` の `PACK_VERSION` を上げてマージする。タグは手で打たない
   - `release.yml` は `main` への push のたびに動き、`v<PACK_VERSION>`（`make -s print-RELEASE_TAG`）のタグがまだ
-    無ければリリースする：テストとパックの作成をし、environment `release` の承認の後に、push されたコミットにタグを
+    無ければリリースする：テストとパックの作成をし、push されたコミットにタグを
     作り、GitHub Release に全部の zip を付ける。タグがもうあれば何もしない。ゲームでのテストは PR で済んでいるので
     しない（`main` には、`main` の最新を含み全部のチェックが通った PR だけが入り、同じ入力からは同じ zip ができる）
   - タグは `release.yml` が Release と一緒に作る（`GITHUB_TOKEN` で push したタグでは、ほかのワークフローが動かない
@@ -149,7 +149,10 @@ https://fabricmc.net/develop）、その Java のイメージ（`docker/java<N>/
 - Release は変えられない設定（immutable releases）にしている。一度 Release に使ったタグの名前は、Release やタグを
   消しても、リポジトリを消して同じ名前で作り直しても、二度と使えない（GitHub の決まり）。試しのリリースでも版の番号を
   使い切るので、出す前に確かめる
-- リリースが途中で失敗したとき：タグを作る前（テストや承認の前）なら、直して `main` に入れれば次の push でまたリリース
+- リリースは承認を待たない（environment `release` は `main` からだけ動けるが、承認者はいない）。`PACK_VERSION` を
+  上げた PR は、マージした時点で GitHub Release と Modrinth に出る。マージする前に、PR の `pack-diff` のまとめで中身を
+  確かめる
+- リリースが途中で失敗したとき：タグを作る前（テストの失敗など）なら、直して `main` に入れれば次の push でまたリリース
   を試みる。タグと Release を作った後（Modrinth で失敗など）は、直さない（タグは消さない）。`PACK_VERSION` のパッチを
   上げて出し直す（公開したリリースは変えられない設定にしている）
 
@@ -157,7 +160,7 @@ https://fabricmc.net/develop）、その Java のイメージ（`docker/java<N>/
 
 `release.yml` は、リポジトリの変数 `MODRINTH_PROJECT_ID` と、environment `release` のシークレット `MODRINTH_TOKEN`
 があると、パックごとに Modrinth の版を作る（mc-publish。`loaders: minecraft`、`game-versions` は表の版を 1 行に 1 つ、
-古いパックから 1 つずつ。zip ごとに environment `release` の承認が要る）。
+古いパックから 1 つずつ）。
 
 - プロジェクト：https://modrinth.com/resourcepack/kanji-grade-language-pack （手で作った。ID は変数
   `MODRINTH_PROJECT_ID`）。Disclosures で「Contains AI-generated content」の表示を付けている（Modrinth の Content

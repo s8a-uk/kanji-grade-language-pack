@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # The settings of the GitHub repository, applied with gh (make github-settings): run it after making the repository
 # again and after making it public. It can be run any number of times. Settings GitHub's free plan gives only to public
-# repositories (rulesets, environment reviewers, secret scanning...) are reported as waiting while it is private.
+# repositories (rulesets, environment branch policies, secret scanning...) are reported as waiting while it is private.
 set -euo pipefail
 
 repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
-owner=${repo%%/*}
 visibility=$(gh api "repos/$repo" --jq .visibility)
 echo "$repo ($visibility)"
 
@@ -53,11 +52,11 @@ EOF
 try "private vulnerability reporting" gh api -X PUT "repos/$repo/private-vulnerability-reporting"
 try "immutable releases" gh api -X PUT "repos/$repo/immutable-releases"
 
-# The environment release (release.yml's jobs that publish): the owner approves, and only from the branch main (a
-# release is made by a push to main)
-owner_id=$(gh api "users/$owner" --jq .id)
+# The environment release (release.yml's jobs that publish, and the secret MODRINTH_TOKEN): only from the branch main
+# (a release is made by a push to main). No approval: what is merged into main was checked on its pull request, and a
+# raised PACK_VERSION is released as soon as it is merged (reviewers [] takes away the ones set before)
 if gh api -X PUT "repos/$repo/environments/release" --input - > /dev/null 2>&1 <<EOF
-{"reviewers": [{"type": "User", "id": $owner_id}],
+{"reviewers": [],
  "deployment_branch_policy": {"protected_branches": false, "custom_branch_policies": true}}
 EOF
 then
@@ -68,10 +67,10 @@ then
 	if ! gh api "$policies" --jq '.branch_policies[] | select(.name == "main" and .type == "branch")' | grep -q .; then
 		gh api -X POST "$policies" -f name=main -f type=branch > /dev/null
 	fi
-	applied "environment release: the owner approves, the branch main only"
+	applied "environment release: the branch main only, no approval"
 else
 	gh api -X PUT "repos/$repo/environments/release" > /dev/null
-	waiting "environment release with a reviewer and the branch main only (made without them for now)"
+	waiting "environment release limited to the branch main (made without it for now)"
 fi
 
 # Rulesets: main takes changes only through pull requests up to date with main whose checks passed (build.yml's job

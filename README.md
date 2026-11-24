@@ -154,7 +154,7 @@ stops the build.
   run fails so that a notice is sent; following a new version is done by hand, starting with
   `make update-minecraft-versions`.
 - `release.yml`: a push to `main` that raises `PACK_VERSION` (`versions.mk`) releases it: runs the tests, builds the
-  packs and, after approval, makes the tag `v<PACK_VERSION>` and a GitHub Release with the zips (the client tests
+  packs, and makes the tag `v<PACK_VERSION>` and a GitHub Release with the zips (the client tests
   passed on the pull request). With the
   repository variable `MODRINTH_PROJECT_ID` and the secret `MODRINTH_TOKEN`, each pack is also published on Modrinth
   (mc-publish).
