@@ -157,16 +157,17 @@ https://fabricmc.net/develop）、その Java のイメージ（`docker/java<N>/
 
 `release.yml` は、リポジトリの変数 `MODRINTH_PROJECT_ID` と、environment `release` のシークレット `MODRINTH_TOKEN`
 があると、パックごとに Modrinth の版を作る（mc-publish。`loaders: minecraft`、`game-versions` は表の版を 1 行に 1 つ、
-古いパックから 1 つずつ）。設定するまでは何もしない。初めての公開：
+古いパックから 1 つずつ。zip ごとに environment `release` の承認が要る）。
 
-1. Modrinth でプロジェクトを手で作る。Disclosures で「Contains AI-generated content」の表示を付ける（Modrinth の
-   Content Rules 6.1：コードの多くが AI の出力のとき、説明文など、ページの要素に生成 AI を使ったとき）。ギャラリー・
-   アイコン・説明文の画像は生成 AI で作らない（6.2。スクリーンショットはゲームでのテストが撮ったもの、アイコンは
-   `make pack-icon` が描いたもの）。ライセンスは MIT（パックの中の文字列は Mojang のもの）
-2. Modrinth の個人のアクセストークン（版を作れる範囲だけ）を作る。期限があるので、切れる前に作り直す
-3. `gh variable set MODRINTH_PROJECT_ID --body <プロジェクトの ID>`、`gh secret set MODRINTH_TOKEN --env release`
-4. プロジェクトを下書きのまま、次のリリース（`PACK_VERSION` を上げる PR のマージ）で公開を試す（mc-publish が
-   `loaders: minecraft` と 26 系の版名を通すか）。うまくいったら審査に出す
+- プロジェクト：https://modrinth.com/resourcepack/kanji-grade-language-pack （手で作った。ID は変数
+  `MODRINTH_PROJECT_ID`）。Disclosures で「Contains AI-generated content」の表示を付けている（Modrinth の Content
+  Rules 6.1：コードの多くが AI の出力のとき、説明文など、ページの要素に生成 AI を使ったとき）。ギャラリー・アイコン・
+  説明文の画像は生成 AI で作らない（6.2。スクリーンショットはゲームでのテストが撮ったもの、アイコンは
+  `make pack-icon` が描いたもの）。ライセンスは MIT（パックの中の文字列は Mojang のもの）
+- トークンは Modrinth の個人のアクセストークン（https://modrinth.com/settings/pats。権限は版を作るのに要るものだけ）。
+  期限があるので、切れる前に作り直し、`gh secret set MODRINTH_TOKEN --env release` で入れ直す（トークンは会話や
+  ログに出さない。シークレットの登録は人が自分の端末でする）
+- 説明文・タグ・ギャラリーなど、プロジェクトのページは Modrinth の画面で手で直す（`release.yml` は版を作るだけ）
 
 ## GitHub の設定
 
