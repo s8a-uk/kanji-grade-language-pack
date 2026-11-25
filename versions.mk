@@ -3,7 +3,7 @@
 # file and passes the values on (to the Python CLI, to Gradle with -P).
 
 # The pack's own version (the name of the zip, GitHub Releases, Modrinth)
-PACK_VERSION := 0.2.2
+PACK_VERSION := 0.2.3
 
 # The client test (game_client_test/): the latest stable releases, for every Minecraft version
 # (https://fabricmc.net/develop); the Fabric API of each version is in minecraft_versions.toml
