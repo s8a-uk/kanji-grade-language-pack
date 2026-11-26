@@ -27,14 +27,14 @@ gh api -X PUT "repos/$repo/topics" --input - > /dev/null <<'EOF'
 EOF
 applied "topics"
 
-# Actions: actions pinned by a commit SHA, only GitHub's own and the one the workflows use; a read-only token by
+# Actions: actions pinned by a commit SHA, only GitHub's own (Modrinth is published with mdr, not an action); a read-only token by
 # default, which may not approve pull requests; approval for every pull request of outside contributors
 gh api -X PUT "repos/$repo/actions/permissions" --input - > /dev/null <<'EOF'
 {"enabled": true, "allowed_actions": "selected", "sha_pinning_required": true}
 EOF
 gh api -X PUT "repos/$repo/actions/permissions/selected-actions" --input - > /dev/null <<'EOF'
 {"github_owned_allowed": true, "verified_allowed": false,
- "patterns_allowed": ["Kira-NT/mc-publish@*"]}
+ "patterns_allowed": []}
 EOF
 gh api -X PUT "repos/$repo/actions/permissions/workflow" --input - > /dev/null <<'EOF'
 {"default_workflow_permissions": "read", "can_approve_pull_request_reviews": false}

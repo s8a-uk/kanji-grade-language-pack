@@ -99,7 +99,10 @@ jobs:
             "NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT."
 
   # One Modrinth version per pack, for the Minecraft versions it is made for; one after another, oldest first, so the
-  # newest Minecraft's is the newest on Modrinth
+  # newest Minecraft's is the newest on Modrinth. Published with mdr (https://github.com/s8a-uk/modrinth-cli), pinned
+  # by its version and the SHA-256 of its archive (raised by hand; check the attestation first: gh attestation verify
+  # <archive> --repo s8a-uk/modrinth-cli). A version already on Modrinth is skipped, so a failed run can be run again.
+  # No version is featured: the token needs only the scope VERSION_CREATE.
   modrinth:
     needs: [build, github-release]
     if: needs.build.outputs.release == 'true' && vars.MODRINTH_PROJECT_ID != ''
@@ -118,16 +121,47 @@ jobs:
           name: release
           path: ${{ runner.temp }}/release
 
-      - uses: Kira-NT/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
-        with:
-          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          files: ${{ runner.temp }}/release/${{ matrix.pack.zip }}
-          name: Kanji Grade Language Pack ${{ matrix.pack.version_number }}
-          version: ${{ matrix.pack.version_number }}
-          version-type: release
-          loaders: minecraft
-          # One version per line (a line with spaces would be a range); exactly these, not filtered
-          game-versions: ${{ matrix.pack.game_versions_lines }}
-          game-version-filter: none
-          changelog: https://github.com/${{ github.repository }}/releases/tag/${{ needs.build.outputs.tag }}
+      - name: Get mdr
+        env:
+          MDR_VERSION: 0.1.0
+          MDR_SHA256: b0ea4e5a1873533e7fdcd307ba8a40abcd4b9a564ac1dfa5752eaa69061b80ed
+        run: |
+          archive="mdr_${MDR_VERSION}_linux_amd64.tar.gz"
+          mkdir -p "$RUNNER_TEMP/mdr"
+          cd "$RUNNER_TEMP/mdr"
+          curl -fsSL --retry 3 -o "$archive" \
+            "https://github.com/s8a-uk/modrinth-cli/releases/download/v${MDR_VERSION}/$archive"
+          echo "$MDR_SHA256  $archive" | sha256sum -c -
+          tar -xzf "$archive" mdr
+          ./mdr --version
+          echo "$RUNNER_TEMP/mdr" >> "$GITHUB_PATH"
+
+      - name: Publish on Modrinth
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_USER_AGENT_CONTACT: https://github.com/${{ github.repository }}
+          PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          ZIP: ${{ runner.temp }}/release/${{ matrix.pack.zip }}
+          VERSION_NUMBER: ${{ matrix.pack.version_number }}
+          # One Minecraft version per line, exactly these
+          GAME_VERSIONS: ${{ matrix.pack.game_versions_lines }}
+          CHANGELOG: https://github.com/${{ github.repository }}/releases/tag/${{ needs.build.outputs.tag }}
+        run: |
+          # mdr exits with 3 when the version is not found; any other failure stops the run
+          status=0
+          mdr -o json version get "$PROJECT_ID" "$VERSION_NUMBER" --fields id,version_number > /dev/null || status=$?
+          case "$status" in
+            0) echo "$VERSION_NUMBER is on Modrinth already: nothing to publish" | tee -a "$GITHUB_STEP_SUMMARY"
+               exit 0 ;;
+            3) ;;
+            *) exit "$status" ;;
+          esac
+          game_version_args=()
+          while IFS= read -r game_version; do
+            game_version_args+=(--game-version "$game_version")
+          done <<< "$GAME_VERSIONS"
+          mdr -o json version create "$PROJECT_ID" --file "$ZIP" --version-number "$VERSION_NUMBER" \
+            --name "Kanji Grade Language Pack $VERSION_NUMBER" --loader minecraft "${game_version_args[@]}" \
+            --version-type release --status listed --changelog "$CHANGELOG" \
+            --fields id,version_number,game_versions
+          echo "Published $VERSION_NUMBER on Modrinth" | tee -a "$GITHUB_STEP_SUMMARY"
