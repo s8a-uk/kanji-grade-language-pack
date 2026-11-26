@@ -157,7 +157,7 @@ stops the build.
   packs and, after approval, makes the tag `v<PACK_VERSION>` and a GitHub Release with the zips (the client tests
   passed on the pull request). With the
   repository variable `MODRINTH_PROJECT_ID` and the secret `MODRINTH_TOKEN`, each pack is also published on Modrinth
-  (mc-publish).
+  (with [mdr](https://github.com/s8a-uk/modrinth-cli), pinned by its SHA-256).
 
 ## Sources of the data
 

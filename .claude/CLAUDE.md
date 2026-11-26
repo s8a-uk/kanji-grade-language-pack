@@ -150,21 +150,32 @@ https://fabricmc.net/develop）、その Java のイメージ（`docker/java<N>/
   消しても、リポジトリを消して同じ名前で作り直しても、二度と使えない（GitHub の決まり）。試しのリリースでも版の番号を
   使い切るので、出す前に確かめる
 - リリースが途中で失敗したとき：タグを作る前（テストや承認の前）なら、直して `main` に入れれば次の push でまたリリース
-  を試みる。タグと Release を作った後（Modrinth で失敗など）は、直さない（タグは消さない）。`PACK_VERSION` のパッチを
-  上げて出し直す（公開したリリースは変えられない設定にしている）
+  を試みる。タグと Release を作った後は、直さない（タグは消さない）。`PACK_VERSION` のパッチを上げて出し直す
+  （公開したリリースは変えられない設定にしている）。Modrinth の版を作るところだけが失敗したときは、原因（トークンの
+  期限など）を直して、失敗したジョブを GitHub の画面で再実行する（Modrinth にもうある版は飛ばす）
 
 ### Modrinth
 
 `release.yml` は、リポジトリの変数 `MODRINTH_PROJECT_ID` と、environment `release` のシークレット `MODRINTH_TOKEN`
-があると、パックごとに Modrinth の版を作る（mc-publish。`loaders: minecraft`、`game-versions` は表の版を 1 行に 1 つ、
-古いパックから 1 つずつ。zip ごとに environment `release` の承認が要る）。
+があると、パックごとに Modrinth の版を作る（`mdr version create`。`--loader minecraft`、`--game-version` は表の版を
+1 つずつ、古いパックから 1 つずつ。zip ごとに environment `release` の承認が要る）。
+
+- `mdr` は自分で作った Modrinth の CLI（https://github.com/s8a-uk/modrinth-cli）。外部のアクションには頼らない。
+  `release.yml` の `MDR_VERSION` と、Linux（amd64）の tar.gz の `MDR_SHA256` で固定する。Dependabot は上げないので、
+  手で上げる：新しい版の tar.gz を取り、`gh attestation verify <tar.gz> --repo s8a-uk/modrinth-cli` で modrinth-cli の
+  リリースのワークフローが作ったものかを確かめ、`SHA256SUMS` の値を写す
+- 作る前に `mdr version get` で同じ版の番号を探し、もうあれば何もしない（失敗したジョブをそのまま再実行できる）
+- 版は featured にしない（`featured: false`）。古い版の featured を外す処理も要らない。featured の版が無いとき、
+  API の `?featured=true` は Minecraft の版ごとに最新の版を返す（Labrinth の「auto featured」）。Modrinth の Web の
+  画面にも featured の表示は無い
 
 - プロジェクト：https://modrinth.com/resourcepack/kanji-grade-language-pack （手で作った。ID は変数
   `MODRINTH_PROJECT_ID`）。Disclosures で「Contains AI-generated content」の表示を付けている（Modrinth の Content
   Rules 6.1：コードの多くが AI の出力のとき、説明文など、ページの要素に生成 AI を使ったとき）。ギャラリー・アイコン・
   説明文の画像は生成 AI で作らない（6.2。スクリーンショットはゲームでのテストが撮ったもの、アイコンは
   `make pack-icon` が描いたもの）。ライセンスは MIT（パックの中の文字列は Mojang のもの）
-- トークンは Modrinth の個人のアクセストークン（https://modrinth.com/settings/pats。権限は版を作るのに要るものだけ）。
+- トークンは Modrinth の個人のアクセストークン（https://modrinth.com/settings/pats。権限は版を作る「Create versions」
+  （`VERSION_CREATE`）だけ）。
   期限があるので、切れる前に作り直し、`gh secret set MODRINTH_TOKEN --env release` で入れ直す（トークンは会話や
   ログに出さない。シークレットの登録は人が自分の端末でする）
 - 説明文・タグ・ギャラリーなど、プロジェクトのページは Modrinth の画面で手で直す（`release.yml` は版を作るだけ）
@@ -195,7 +206,8 @@ https://fabricmc.net/develop）、その Java のイメージ（`docker/java<N>/
 
 - Dependabot が GitHub Actions・ベースイメージ（ビルド用、uv、Java の版ごとのテスト用）・`uv.lock`・Gradle の
   ラッパーの更新を PR にする。出てから 7 日待って取り込む（`cooldown`）。Minecraft・Fabric API・Fabric Loader・Loom は
-  手で上げる（`check-minecraft-versions.yml` が新しいものを知らせる）。アイコンのフォントも手で上げる
+  手で上げる（`check-minecraft-versions.yml` が新しいものを知らせる）。アイコンのフォントと `mdr`（上の「Modrinth」）も
+  手で上げる
 - Dependabot は Python のイメージをパッチ版だけ（`pyproject.toml` が 3.15 を求めるため。3.16 などへは
   `requires-python` を変えて `make lock` で手で上げる。アルファ版も来なくなる）、Temurin のイメージを Java の版ごとの
   メジャー版の中だけで上げる（`.github/dependabot.yml` の `ignore`）
@@ -218,7 +230,8 @@ https://fabricmc.net/develop）、その Java のイメージ（`docker/java<N>/
   書き込みの権限が要るジョブ（リリース・Modrinth）では、ビルドのコードを動かさない。リリースと Modrinth は
   environment `release` で動く
 - `run:` の中に `${{ }}` を直接書かない（`env:` を通す）
-- 使うアクションを増やすときは、`.github/apply-repository-settings.sh` の許可にも足す
+- 使うアクションを増やすときは、`.github/apply-repository-settings.sh` の許可にも足す（今は GitHub のアクションだけ）
+- ワークフローでダウンロードして動かすツール（`mdr`）は、版と SHA-256 で固定し、`sha256sum -c` で確かめてから動かす
 
 ## 落とし穴
 
